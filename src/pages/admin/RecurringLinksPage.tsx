@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Link2, Plus, Copy, Check, Trash2, ToggleLeft, ToggleRight, Infinity as InfinityIcon, AlertTriangle, Clock, Edit3, Lock, Mail } from 'lucide-react';
+import { Link2, Plus, Copy, Check, Trash2, ToggleLeft, ToggleRight, Infinity as InfinityIcon, AlertTriangle, Clock, Edit3, Lock, Mail, X } from 'lucide-react';
 import { useRecurringLinks } from '@/hooks/useRecurringLinks';
 import { useMeetingTypes } from '@/hooks/useMeetingTypes';
 import { useAvailability } from '@/hooks/useAvailability';
@@ -12,8 +12,8 @@ import Modal from '@/components/ui/Modal';
 import Badge from '@/components/ui/Badge';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { triggerInviteEmail } from '@/lib/bookingEmails';
-import { DAY_NAMES, type RecurringLink } from '@/lib/types';
-import { formatTime, timeToMinutes } from '@/lib/utils';
+import { DAY_NAMES, type RecurringLink, type TimeRestriction } from '@/lib/types';
+import { formatTime, timeToMinutes, classNames } from '@/lib/utils';
 
 function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -24,6 +24,19 @@ function splitName(fullName: string): { first: string; last: string } {
   if (parts.length === 0) return { first: '', last: '' };
   if (parts.length === 1) return { first: parts[0], last: '' };
   return { first: parts[0], last: parts.slice(1).join(' ') };
+}
+
+function formatTimeRestrictions(restrictions: TimeRestriction[] | null): string {
+  if (!restrictions || restrictions.length === 0) return '';
+  return restrictions
+    .map(r => `${DAY_NAMES[r.day].slice(0, 3)} ${formatTime(r.start)}-${formatTime(r.end)}`)
+    .join(', ');
+}
+
+interface RuleDraft {
+  day: number;
+  start: string;
+  end: string;
 }
 
 export default function RecurringLinksPage() {
@@ -45,13 +58,12 @@ export default function RecurringLinksPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [emailError, setEmailError] = useState('');
 
-  // Scheduling mode
-  const [schedulingMode, setSchedulingMode] = useState<'strict' | 'flexible'>('strict');
-
-  // Allowed days/time
-  const [allowedDays, setAllowedDays] = useState<number[]>([]);
-  const [allowedTimeStart, setAllowedTimeStart] = useState('');
-  const [allowedTimeEnd, setAllowedTimeEnd] = useState('');
+  // Time restrictions (per-day rule list)
+  const [ruleDrafts, setRuleDrafts] = useState<RuleDraft[]>([]);
+  const [draftDay, setDraftDay] = useState('1');
+  const [draftStart, setDraftStart] = useState('');
+  const [draftEnd, setDraftEnd] = useState('');
+  const [allowFullAvailability, setAllowFullAvailability] = useState(true);
 
   // Notes
   const [notesToClient, setNotesToClient] = useState('');
@@ -70,10 +82,11 @@ export default function RecurringLinksPage() {
   const [editOccurrences, setEditOccurrences] = useState('');
   const [editEndDate, setEditEndDate] = useState('');
   const [editIsOngoing, setEditIsOngoing] = useState(false);
-  const [editSchedulingMode, setEditSchedulingMode] = useState<'strict' | 'flexible'>('strict');
-  const [editAllowedDays, setEditAllowedDays] = useState<number[]>([]);
-  const [editAllowedTimeStart, setEditAllowedTimeStart] = useState('');
-  const [editAllowedTimeEnd, setEditAllowedTimeEnd] = useState('');
+  const [editRuleDrafts, setEditRuleDrafts] = useState<RuleDraft[]>([]);
+  const [editDraftDay, setEditDraftDay] = useState('1');
+  const [editDraftStart, setEditDraftStart] = useState('');
+  const [editDraftEnd, setEditDraftEnd] = useState('');
+  const [editAllowFullAvailability, setEditAllowFullAvailability] = useState(true);
   const [editNotesToClient, setEditNotesToClient] = useState('');
   const [editInternalNotes, setEditInternalNotes] = useState('');
   const [editExpiresAt, setEditExpiresAt] = useState('');
@@ -83,27 +96,13 @@ export default function RecurringLinksPage() {
   const allowFrequency = !frequency;
   const allowEndDate = !occurrences && !endDate && !isOngoing;
 
-  const toggleDay = (day: number) => {
-    setAllowedDays(prev =>
-      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day].sort()
-    );
-  };
-
-  const toggleEditDay = (day: number) => {
-    setEditAllowedDays(prev =>
-      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day].sort()
-    );
-  };
-
-  // Check if allowed time is outside normal availability
   const outOfHoursWarning = useMemo(() => {
-    if (!allowedTimeStart || !allowedTimeEnd) return false;
-    const aStart = timeToMinutes(allowedTimeStart);
-    const aEnd = timeToMinutes(allowedTimeEnd);
-
-    for (const day of (allowedDays.length > 0 ? allowedDays : [0,1,2,3,4,5,6])) {
-      const dayRules = rules.filter(r => r.day_of_week === day && r.is_active);
+    if (ruleDrafts.length === 0) return false;
+    for (const rule of ruleDrafts) {
+      const dayRules = rules.filter(r => r.day_of_week === rule.day && r.is_active);
       if (dayRules.length === 0) continue;
+      const aStart = timeToMinutes(rule.start);
+      const aEnd = timeToMinutes(rule.end);
       const covered = dayRules.some(r => {
         const rStart = timeToMinutes(r.start_time);
         const rEnd = timeToMinutes(r.end_time);
@@ -112,16 +111,15 @@ export default function RecurringLinksPage() {
       if (!covered) return true;
     }
     return false;
-  }, [allowedTimeStart, allowedTimeEnd, allowedDays, rules]);
+  }, [ruleDrafts, rules]);
 
   const editOutOfHoursWarning = useMemo(() => {
-    if (!editAllowedTimeStart || !editAllowedTimeEnd) return false;
-    const aStart = timeToMinutes(editAllowedTimeStart);
-    const aEnd = timeToMinutes(editAllowedTimeEnd);
-
-    for (const day of (editAllowedDays.length > 0 ? editAllowedDays : [0,1,2,3,4,5,6])) {
-      const dayRules = rules.filter(r => r.day_of_week === day && r.is_active);
+    if (editRuleDrafts.length === 0) return false;
+    for (const rule of editRuleDrafts) {
+      const dayRules = rules.filter(r => r.day_of_week === rule.day && r.is_active);
       if (dayRules.length === 0) continue;
+      const aStart = timeToMinutes(rule.start);
+      const aEnd = timeToMinutes(rule.end);
       const covered = dayRules.some(r => {
         const rStart = timeToMinutes(r.start_time);
         const rEnd = timeToMinutes(r.end_time);
@@ -130,7 +128,29 @@ export default function RecurringLinksPage() {
       if (!covered) return true;
     }
     return false;
-  }, [editAllowedTimeStart, editAllowedTimeEnd, editAllowedDays, rules]);
+  }, [editRuleDrafts, rules]);
+
+  const addDraftRule = () => {
+    if (!draftStart || !draftEnd) return;
+    setRuleDrafts(prev => [...prev, { day: parseInt(draftDay), start: draftStart, end: draftEnd }].sort((a, b) => a.day - b.day));
+    setDraftStart('');
+    setDraftEnd('');
+  };
+
+  const removeDraftRule = (index: number) => {
+    setRuleDrafts(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const addEditDraftRule = () => {
+    if (!editDraftStart || !editDraftEnd) return;
+    setEditRuleDrafts(prev => [...prev, { day: parseInt(editDraftDay), start: editDraftStart, end: editDraftEnd }].sort((a, b) => a.day - b.day));
+    setEditDraftStart('');
+    setEditDraftEnd('');
+  };
+
+  const removeEditDraftRule = (index: number) => {
+    setEditRuleDrafts(prev => prev.filter((_, i) => i !== index));
+  };
 
   const resetForm = () => {
     setFirstName('');
@@ -142,10 +162,11 @@ export default function RecurringLinksPage() {
     setOccurrences('');
     setEndDate('');
     setIsOngoing(false);
-    setSchedulingMode('strict');
-    setAllowedDays([]);
-    setAllowedTimeStart('');
-    setAllowedTimeEnd('');
+    setRuleDrafts([]);
+    setDraftDay('1');
+    setDraftStart('');
+    setDraftEnd('');
+    setAllowFullAvailability(true);
     setNotesToClient('');
     setInternalNotes('');
     setExpiresAt('');
@@ -172,10 +193,9 @@ export default function RecurringLinksPage() {
         allow_client_end_date: allowEndDate,
         meeting_type_id: meetingTypeId || null,
         is_ongoing: isOngoing,
-        scheduling_mode: schedulingMode,
-        allowed_days: allowedDays.length > 0 ? allowedDays : null,
-        allowed_time_start: allowedTimeStart || null,
-        allowed_time_end: allowedTimeEnd || null,
+        scheduling_mode: 'flexible',
+        time_restrictions: ruleDrafts.length > 0 ? ruleDrafts : null,
+        allow_full_availability: allowFullAvailability,
         notes_to_client: notesToClient.trim() || null,
         internal_notes: internalNotes.trim() || null,
         expires_at: expiresAt ? new Date(expiresAt + 'T23:59:59').toISOString() : null,
@@ -231,10 +251,11 @@ export default function RecurringLinksPage() {
     setEditOccurrences(link.occurrences?.toString() || '');
     setEditEndDate(link.end_date || '');
     setEditIsOngoing(link.is_ongoing);
-    setEditSchedulingMode(link.scheduling_mode);
-    setEditAllowedDays(link.allowed_days || []);
-    setEditAllowedTimeStart(link.allowed_time_start || '');
-    setEditAllowedTimeEnd(link.allowed_time_end || '');
+    setEditRuleDrafts(link.time_restrictions || []);
+    setEditDraftDay('1');
+    setEditDraftStart('');
+    setEditDraftEnd('');
+    setEditAllowFullAvailability(link.allow_full_availability ?? true);
     setEditNotesToClient(link.notes_to_client || '');
     setEditInternalNotes(link.internal_notes || '');
     setEditExpiresAt(link.expires_at ? new Date(link.expires_at).toISOString().slice(0, 10) : '');
@@ -268,10 +289,9 @@ export default function RecurringLinksPage() {
         allow_client_end_date: editAllowEndDate,
         meeting_type_id: editMeetingTypeId || null,
         is_ongoing: editIsOngoing,
-        scheduling_mode: editSchedulingMode,
-        allowed_days: editAllowedDays.length > 0 ? editAllowedDays : null,
-        allowed_time_start: editAllowedTimeStart || null,
-        allowed_time_end: editAllowedTimeEnd || null,
+        scheduling_mode: 'flexible',
+        time_restrictions: editRuleDrafts.length > 0 ? editRuleDrafts : null,
+        allow_full_availability: editAllowFullAvailability,
         notes_to_client: editNotesToClient.trim() || null,
         internal_notes: editInternalNotes.trim() || null,
         expires_at: editExpiresAt ? new Date(editExpiresAt + 'T23:59:59').toISOString() : null,
@@ -288,6 +308,85 @@ export default function RecurringLinksPage() {
   if (loading || mtLoading) {
     return <div className="flex justify-center py-20"><LoadingSpinner size="lg" /></div>;
   }
+
+  const dayOptions = DAY_NAMES.map((day, idx) => ({ value: String(idx), label: day }));
+
+  const renderRuleList = (
+    drafts: RuleDraft[],
+    onRemove: (index: number) => void,
+  ) => (
+    <>
+      {drafts.length > 0 ? (
+        <div className="space-y-1.5 max-h-48 overflow-y-auto">
+          {drafts.map((rule, i) => (
+            <div key={i} className="flex items-center justify-between gap-3 bg-gray-50 rounded-lg px-3 py-2">
+              <div className="flex items-center gap-3">
+                <Clock className="w-4 h-4 text-gray-400" />
+                <span className="text-sm text-gray-700">{DAY_NAMES[rule.day]}</span>
+                <span className="text-sm text-gray-500">{formatTime(rule.start)} - {formatTime(rule.end)}</span>
+              </div>
+              <button
+                onClick={() => onRemove(i)}
+                className="p-1 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm text-gray-400 text-center py-3 bg-gray-50 rounded-lg">No time restrictions added. Client will see your full availability.</p>
+      )}
+    </>
+  );
+
+  const renderRuleBuilder = (
+    draftDayVal: string,
+    setDraftDayVal: (v: string) => void,
+    draftStartVal: string,
+    setDraftStartVal: (v: string) => void,
+    draftEndVal: string,
+    setDraftEndVal: (v: string) => void,
+    onAdd: () => void,
+  ) => (
+    <div className="space-y-3">
+      <div className="flex gap-2 items-end">
+        <div className="flex-1">
+          <label className="block text-xs font-medium text-gray-500 mb-1">Day</label>
+          <select
+            value={draftDayVal}
+            onChange={e => setDraftDayVal(e.target.value)}
+            className="w-full rounded-lg border border-gray-300 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-jungo-green-200 focus:border-jungo-green-500"
+          >
+            {dayOptions.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
+        <div className="flex-1">
+          <label className="block text-xs font-medium text-gray-500 mb-1">Start</label>
+          <input
+            type="time"
+            value={draftStartVal}
+            onChange={e => setDraftStartVal(e.target.value)}
+            className="w-full rounded-lg border border-gray-300 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-jungo-green-200 focus:border-jungo-green-500"
+          />
+        </div>
+        <div className="flex-1">
+          <label className="block text-xs font-medium text-gray-500 mb-1">End</label>
+          <input
+            type="time"
+            value={draftEndVal}
+            onChange={e => setDraftEndVal(e.target.value)}
+            className="w-full rounded-lg border border-gray-300 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-jungo-green-200 focus:border-jungo-green-500"
+          />
+        </div>
+        <Button type="button" variant="outline" onClick={onAdd} disabled={!draftStartVal || !draftEndVal} icon={<Plus className="w-4 h-4" />}>
+          Add
+        </Button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -312,6 +411,7 @@ export default function RecurringLinksPage() {
           {links.map(link => {
             const mtName = meetingTypeName(link.meeting_type_id);
             const canEdit = !link.is_used;
+            const restrictionsText = formatTimeRestrictions(link.time_restrictions);
             return (
               <Card key={link.id} padding="sm">
                 <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -320,9 +420,6 @@ export default function RecurringLinksPage() {
                       <p className="font-medium text-gray-900 truncate">{link.client_name}</p>
                       <Badge variant={link.is_active ? 'success' : 'neutral'}>
                         {link.is_active ? 'Active' : 'Inactive'}
-                      </Badge>
-                      <Badge variant={link.scheduling_mode === 'flexible' ? 'info' : 'neutral'}>
-                        {link.scheduling_mode === 'flexible' ? 'Flexible' : 'Strict'}
                       </Badge>
                       {link.is_used && <Badge variant="neutral">Used</Badge>}
                       {isLinkExpired(link) && <Badge variant="warning">Expired</Badge>}
@@ -348,11 +445,13 @@ export default function RecurringLinksPage() {
                         Expires {new Date(link.expires_at).toLocaleDateString()}
                       </p>
                     )}
-                    {link.allowed_days && link.allowed_days.length > 0 && (
+                    {restrictionsText && (
                       <p className="text-xs text-gray-400 mt-0.5">
-                        Allowed: {link.allowed_days.map(d => DAY_NAMES[d].slice(0, 3)).join(', ')}
-                        {link.allowed_time_start && link.allowed_time_end && ` ${formatTime(link.allowed_time_start)}-${formatTime(link.allowed_time_end)}`}
+                        Allowed: {restrictionsText}
                       </p>
+                    )}
+                    {link.allow_full_availability && link.time_restrictions && link.time_restrictions.length > 0 && (
+                      <p className="text-xs text-jungo-green-500 mt-0.5">Client can also browse full availability</p>
                     )}
                     {link.notes_to_client && (
                       <div className="flex items-start gap-1.5 mt-1">
@@ -479,82 +578,38 @@ export default function RecurringLinksPage() {
             </span>
           </label>
 
-          {/* Scheduling Mode */}
+          {/* Time Restrictions */}
           <div className="border-t pt-4">
-            <p className="text-sm font-medium text-gray-700 mb-2">Scheduling Mode</p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setSchedulingMode('strict')}
-                className={`flex-1 rounded-lg border p-3 text-left transition-colors ${
-                  schedulingMode === 'strict'
-                    ? 'border-jungo-green-500 bg-jungo-green-50'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <p className="text-sm font-medium text-gray-900">Strict</p>
-                <p className="text-xs text-gray-500 mt-0.5">Client picks a start date where all sessions are conflict-free. Conflicted dates are greyed out.</p>
-              </button>
-              <button
-                onClick={() => setSchedulingMode('flexible')}
-                className={`flex-1 rounded-lg border p-3 text-left transition-colors ${
-                  schedulingMode === 'flexible'
-                    ? 'border-jungo-green-500 bg-jungo-green-50'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <p className="text-sm font-medium text-gray-900">Flexible</p>
-                <p className="text-xs text-gray-500 mt-0.5">Client can reschedule or skip individual conflicted sessions during booking.</p>
-              </button>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Time Restrictions (optional)</label>
+            <p className="text-xs text-gray-500 mb-3">Restrict which days and times the client can book. Add one rule per day. Leave blank to allow all your available hours.</p>
+            {renderRuleBuilder(draftDay, setDraftDay, draftStart, setDraftStart, draftEnd, setDraftEnd, addDraftRule)}
+            <div className="mt-3">
+              {renderRuleList(ruleDrafts, removeDraftRule)}
             </div>
-          </div>
-
-          {/* Allowed Days */}
-          <div className="border-t pt-4">
-            <p className="text-sm font-medium text-gray-700 mb-2">Allowed Days (optional)</p>
-            <p className="text-xs text-gray-500 mb-2">Restrict which days of the week the client can book. Leave blank to allow all days.</p>
-            <div className="flex flex-wrap gap-1.5">
-              {DAY_NAMES.map((day, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => toggleDay(idx)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                    allowedDays.includes(idx)
-                      ? 'bg-jungo-green-500 text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  {day.slice(0, 3)}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Allowed Time Range */}
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Allowed Start Time (optional)"
-              type="time"
-              value={allowedTimeStart}
-              onChange={e => setAllowedTimeStart(e.target.value)}
-            />
-            <Input
-              label="Allowed End Time (optional)"
-              type="time"
-              value={allowedTimeEnd}
-              onChange={e => setAllowedTimeEnd(e.target.value)}
-            />
           </div>
 
           {outOfHoursWarning && (
             <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg p-3">
               <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
               <p className="text-sm text-amber-700">
-                The selected time range falls outside your normal availability hours. Sessions will be booked outside regular availability.
+                Some selected time ranges fall outside your normal availability hours. Sessions will be booked outside regular availability.
               </p>
             </div>
           )}
 
-          {/* Notes */}
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={allowFullAvailability}
+              onChange={e => setAllowFullAvailability(e.target.checked)}
+              className="w-4 h-4 rounded border-gray-300 text-jungo-green-500 focus:ring-jungo-green-500"
+            />
+            <span className="text-sm font-medium text-gray-700">Allow client to also choose from regular availability</span>
+          </label>
+          <p className="text-xs text-gray-400 -mt-2 ml-7">
+            When checked, the client sees your restricted times first, with an option to browse the full availability calendar. When unchecked, only the restricted times are offered.
+          </p>
+
           <Textarea
             label="Notes to Client (optional)"
             value={notesToClient}
@@ -675,78 +730,34 @@ export default function RecurringLinksPage() {
             </span>
           </label>
 
-          {/* Scheduling Mode */}
+          {/* Time Restrictions */}
           <div className="border-t pt-4">
-            <p className="text-sm font-medium text-gray-700 mb-2">Scheduling Mode</p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setEditSchedulingMode('strict')}
-                className={`flex-1 rounded-lg border p-3 text-left transition-colors ${
-                  editSchedulingMode === 'strict'
-                    ? 'border-jungo-green-500 bg-jungo-green-50'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <p className="text-sm font-medium text-gray-900">Strict</p>
-                <p className="text-xs text-gray-500 mt-0.5">Client picks a start date where all sessions are conflict-free.</p>
-              </button>
-              <button
-                onClick={() => setEditSchedulingMode('flexible')}
-                className={`flex-1 rounded-lg border p-3 text-left transition-colors ${
-                  editSchedulingMode === 'flexible'
-                    ? 'border-jungo-green-500 bg-jungo-green-50'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <p className="text-sm font-medium text-gray-900">Flexible</p>
-                <p className="text-xs text-gray-500 mt-0.5">Client can reschedule or skip individual conflicted sessions.</p>
-              </button>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Time Restrictions (optional)</label>
+            <p className="text-xs text-gray-500 mb-3">Restrict which days and times the client can book. Add one rule per day.</p>
+            {renderRuleBuilder(editDraftDay, setEditDraftDay, editDraftStart, setEditDraftStart, editDraftEnd, setEditDraftEnd, addEditDraftRule)}
+            <div className="mt-3">
+              {renderRuleList(editRuleDrafts, removeEditDraftRule)}
             </div>
-          </div>
-
-          {/* Allowed Days */}
-          <div className="border-t pt-4">
-            <p className="text-sm font-medium text-gray-700 mb-2">Allowed Days (optional)</p>
-            <div className="flex flex-wrap gap-1.5">
-              {DAY_NAMES.map((day, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => toggleEditDay(idx)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                    editAllowedDays.includes(idx)
-                      ? 'bg-jungo-green-500 text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  {day.slice(0, 3)}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Allowed Start Time (optional)"
-              type="time"
-              value={editAllowedTimeStart}
-              onChange={e => setEditAllowedTimeStart(e.target.value)}
-            />
-            <Input
-              label="Allowed End Time (optional)"
-              type="time"
-              value={editAllowedTimeEnd}
-              onChange={e => setEditAllowedTimeEnd(e.target.value)}
-            />
           </div>
 
           {editOutOfHoursWarning && (
             <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg p-3">
               <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
               <p className="text-sm text-amber-700">
-                The selected time range falls outside your normal availability hours.
+                Some selected time ranges fall outside your normal availability hours.
               </p>
             </div>
           )}
+
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={editAllowFullAvailability}
+              onChange={e => setEditAllowFullAvailability(e.target.checked)}
+              className="w-4 h-4 rounded border-gray-300 text-jungo-green-500 focus:ring-jungo-green-500"
+            />
+            <span className="text-sm font-medium text-gray-700">Allow client to also choose from regular availability</span>
+          </label>
 
           <Textarea
             label="Notes to Client (optional)"

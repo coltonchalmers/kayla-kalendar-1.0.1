@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { getMonthDays, isPast, isToday, hasAvailability, isDateSelectable, classNames, formatDate } from '@/lib/utils';
-import type { AvailabilityRule, AvailabilityOverride, Booking } from '@/lib/types';
+import type { AvailabilityRule, AvailabilityOverride, Booking, TimeRestriction } from '@/lib/types';
 import { DAY_NAMES_SHORT } from '@/lib/types';
 
 interface CalendarGridProps {
@@ -16,9 +16,7 @@ interface CalendarGridProps {
   overrides: AvailabilityOverride[];
   maxDate?: Date;
   allowAllFutureDates?: boolean;
-  allowedDays?: number[] | null;
-  allowedTimeStart?: string | null;
-  allowedTimeEnd?: string | null;
+  timeRestrictions?: TimeRestriction[] | null;
   bookingsForDay?: (date: string) => Booking[];
 }
 
@@ -34,9 +32,7 @@ export default function CalendarGrid({
   overrides,
   maxDate,
   allowAllFutureDates = false,
-  allowedDays = null,
-  allowedTimeStart = null,
-  allowedTimeEnd = null,
+  timeRestrictions = null,
   bookingsForDay,
 }: CalendarGridProps) {
   const [slideDir, setSlideDir] = useState<1 | -1>(1);
@@ -89,9 +85,8 @@ export default function CalendarGrid({
           const beyondMax = maxDate ? day > maxDate : false;
           const today = isToday(day);
           const hasAvail = !past && !beyondMax && hasAvailability(day, rules, overrides);
-          const dayAllowed = !allowedDays || allowedDays.length === 0 || allowedDays.includes(day.getDay());
-          const linkOverride = !!allowedTimeStart && !!allowedTimeEnd;
-          const selectable = isCurrentMonth && (allowAllFutureDates ? (!past && !beyondMax) : (linkOverride ? !past && !beyondMax && isDateSelectable(day, rules, overrides, allowedDays, allowedTimeStart, allowedTimeEnd) : hasAvail)) && dayAllowed;
+          const hasRestrictions = !!timeRestrictions && timeRestrictions.length > 0;
+          const selectable = isCurrentMonth && (allowAllFutureDates ? (!past && !beyondMax) : (hasRestrictions ? !past && !beyondMax && isDateSelectable(day, rules, overrides, timeRestrictions) : hasAvail));
           const selected = dateStr === selectedDate;
           const dayBookings = bookingsForDay ? bookingsForDay(dateStr).filter(b => b.status !== 'cancelled') : [];
           const bookingCount = dayBookings.length;

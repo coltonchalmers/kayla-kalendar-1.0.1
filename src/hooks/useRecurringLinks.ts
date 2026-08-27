@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import type { RecurringLink } from '@/lib/types';
+import type { RecurringLink, TimeRestriction } from '@/lib/types';
 
 export function useRecurringLinks() {
   const [links, setLinks] = useState<RecurringLink[]>([]);
@@ -33,9 +33,8 @@ export function useRecurringLinks() {
     meeting_type_id?: string | null;
     is_ongoing?: boolean;
     scheduling_mode?: 'strict' | 'flexible';
-    allowed_days?: number[] | null;
-    allowed_time_start?: string | null;
-    allowed_time_end?: string | null;
+    time_restrictions?: TimeRestriction[] | null;
+    allow_full_availability?: boolean;
     notes_to_client?: string | null;
     internal_notes?: string | null;
     expires_at?: string | null;
@@ -70,12 +69,13 @@ export function useRecurringLinks() {
     frequency?: string | null;
     occurrences?: number | null;
     end_date?: string | null;
+    allow_client_frequency?: boolean;
+    allow_client_end_date?: boolean;
     meeting_type_id?: string | null;
     is_ongoing?: boolean;
     scheduling_mode?: 'strict' | 'flexible';
-    allowed_days?: number[] | null;
-    allowed_time_start?: string | null;
-    allowed_time_end?: string | null;
+    time_restrictions?: TimeRestriction[] | null;
+    allow_full_availability?: boolean;
     notes_to_client?: string | null;
     internal_notes?: string | null;
     expires_at?: string | null;

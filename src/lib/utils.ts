@@ -1,4 +1,4 @@
-import type { AvailabilityRule, AvailabilityOverride, Booking } from './types';
+import type { AvailabilityRule, AvailabilityOverride, Booking, TimeRestriction } from './types';
 
 export function generateTimeSlots(
   date: Date,
@@ -123,27 +123,15 @@ export function isDateSelectable(
   date: Date,
   rules: AvailabilityRule[],
   overrides: AvailabilityOverride[],
-  allowedDays: number[] | null = null,
-  allowedTimeStart: string | null = null,
-  allowedTimeEnd: string | null = null
+  timeRestrictions: TimeRestriction[] | null = null,
 ): boolean {
   const dateStr = formatDate(date);
   const override = overrides.find(o => o.date === dateStr);
   if (override?.is_blocked) return false;
 
-  if (allowedDays && allowedDays.length > 0 && !allowedDays.includes(date.getDay())) {
-    return false;
-  }
-
-  if (allowedTimeStart && allowedTimeEnd) {
-    if (override && !override.is_blocked && override.start_time && override.end_time) {
-      const oStart = timeToMinutes(override.start_time);
-      const oEnd = timeToMinutes(override.end_time);
-      const aStart = timeToMinutes(allowedTimeStart);
-      const aEnd = timeToMinutes(allowedTimeEnd);
-      return oStart < aEnd && oEnd > aStart;
-    }
-    return true;
+  if (timeRestrictions && timeRestrictions.length > 0) {
+    const dayOfWeek = date.getDay();
+    return timeRestrictions.some(r => r.day === dayOfWeek);
   }
 
   if (override && !override.is_blocked && override.start_time) return true;
@@ -235,6 +223,15 @@ export function isPast(date: Date): boolean {
 export function addDays(date: Date, days: number): Date {
   const result = new Date(date);
   result.setDate(result.getDate() + days);
+  return result;
+}
+
+export function addMonths(date: Date, months: number): Date {
+  const result = new Date(date);
+  const targetDay = result.getDate();
+  result.setMonth(result.getMonth() + months, 1);
+  const lastDayOfMonth = new Date(result.getFullYear(), result.getMonth() + 1, 0).getDate();
+  result.setDate(Math.min(targetDay, lastDayOfMonth));
   return result;
 }
 

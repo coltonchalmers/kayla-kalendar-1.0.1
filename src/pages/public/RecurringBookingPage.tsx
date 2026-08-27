@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
-import { ArrowLeft, AlertCircle, Repeat, Clock, AlertTriangle, CalendarClock, Check, X, Lock } from 'lucide-react';
+import { ArrowLeft, CircleAlert as AlertCircle, Repeat, Clock, TriangleAlert as AlertTriangle, CalendarClock, Check, X, Lock, CalendarDays } from 'lucide-react';
 import CalendarGrid from '@/components/calendar/CalendarGrid';
 import TimeSlotPicker from '@/components/calendar/TimeSlotPicker';
 import IntakeForm from '@/components/booking/IntakeForm';
@@ -17,9 +17,9 @@ import { useAvailability } from '@/hooks/useAvailability';
 import { useBookings } from '@/hooks/useBookings';
 import { useSettings } from '@/hooks/useSettings';
 import { useRecurringLinks } from '@/hooks/useRecurringLinks';
-import { generateTimeSlots, generateSlotsInRange, formatDate, formatDisplayDate, formatTime, addDays, detectTimezone, getTimezoneOptions, timeToMinutes, convertTimeSlot, convertTimeSlotWithDate, isDateSelectable } from '@/lib/utils';
+import { generateTimeSlots, generateSlotsInRange, formatDate, formatDisplayDate, formatTime, addDays, addMonths, detectTimezone, getTimezoneOptions, timeToMinutes, convertTimeSlot, convertTimeSlotWithDate, isDateSelectable } from '@/lib/utils';
 import { triggerRecurringConfirmationEmail } from '@/lib/bookingEmails';
-import type { Booking, RecurringLink, MeetingType, BookingStep } from '@/lib/types';
+import type { Booking, RecurringLink, MeetingType, TimeRestriction, BookingStep } from '@/lib/types';
 
 type ConflictResolution = 'pending' | 'reschedule' | 'skip';
 
@@ -39,6 +39,28 @@ const FREQUENCY_LABELS: Record<string, string> = {
   monthly: 'Monthly',
 };
 
+function generateSlotsForRestrictions(
+  date: Date,
+  restrictions: TimeRestriction[],
+  existingBookings: Booking[],
+  durationMinutes: number,
+  leadHours: number,
+  bufferMinutes: number,
+  slotIncrement: number,
+  adminTimezone: string
+): string[] {
+  const dayOfWeek = date.getDay();
+  const dayRestrictions = restrictions.filter(r => r.day === dayOfWeek);
+  if (dayRestrictions.length === 0) return [];
+
+  const allSlots: string[] = [];
+  for (const rule of dayRestrictions) {
+    const slots = generateSlotsInRange(date, rule.start, rule.end, existingBookings, durationMinutes, leadHours, bufferMinutes, slotIncrement, adminTimezone);
+    allSlots.push(...slots);
+  }
+  return [...new Set(allSlots)].sort();
+}
+
 export default function RecurringBookingPage() {
   const { token } = useParams<{ token: string }>();
   const { fetchLinkByToken, markLinkAsUsed } = useRecurringLinks();
@@ -52,6 +74,7 @@ export default function RecurringBookingPage() {
   const { createBooking, fetchBookingsForDate } = useBookings({ autoFetch: false, userId: ownerUserId });
   const { settings, loading: settingsLoading } = useSettings(ownerUserId);
 
+  // Steps: calendar -> time -> recurrence -> conflicts -> form -> confirm
   const [step, setStep] = useState<BookingStep | 'recurrence' | 'conflicts'>('calendar');
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
@@ -63,6 +86,9 @@ export default function RecurringBookingPage() {
   const [recurrenceError, setRecurrenceError] = useState('');
   const [conflictError, setConflictError] = useState('');
   const [linkExpired, setLinkExpired] = useState(false);
+
+  // Browse full availability toggle
+  const [useFullAvailability, setUseFullAvailability] = useState(false);
 
   const [frequency, setFrequency] = useState('');
   const [occurrences, setOccurrences] = useState('');
@@ -122,13 +148,14 @@ export default function RecurringBookingPage() {
   const leadHours = settings?.booking_lead_hours || 2;
   const slotIncrement = settings?.slot_increment_minutes ?? 15;
 
-  const isFlexible = link?.scheduling_mode === 'flexible';
-
   const adminTimezone = settings?.timezone || 'America/New_York';
 
-  const allowedDays = link?.allowed_days || null;
-  const allowedTimeStart = link?.allowed_time_start || null;
-  const allowedTimeEnd = link?.allowed_time_end || null;
+  const timeRestrictions = link?.time_restrictions || null;
+  const hasRestrictions = !!timeRestrictions && timeRestrictions.length > 0;
+  const canBrowseFullAvailability = link?.allow_full_availability ?? true;
+
+  // When using restrictions, use those; when using full availability (or no restrictions), use normal rules
+  const activeRestrictions = hasRestrictions && !useFullAvailability ? timeRestrictions : null;
 
   const adminSetFrequency = !!link?.frequency && !link.allow_client_frequency;
   const adminSetEndCondition = !!link && (link.is_ongoing || !!link.occurrences || !!link.end_date) && !link.allow_client_end_date;
@@ -139,28 +166,122 @@ export default function RecurringBookingPage() {
     const date = new Date(dateStr + 'T00:00:00');
 
     let available: string[];
-    if (allowedTimeStart && allowedTimeEnd) {
-      available = generateSlotsInRange(date, allowedTimeStart, allowedTimeEnd, existing, durationMinutes, leadHours, bufferMinutes, slotIncrement, adminTimezone);
+    if (activeRestrictions) {
+      available = generateSlotsForRestrictions(date, activeRestrictions, existing, durationMinutes, leadHours, bufferMinutes, slotIncrement, adminTimezone);
     } else {
       available = generateTimeSlots(date, rules, overrides, existing, durationMinutes, leadHours, bufferMinutes, slotIncrement, adminTimezone);
     }
 
     setSlots(available);
     setSlotsLoading(false);
-  }, [rules, overrides, settings, fetchBookingsForDate, durationMinutes, allowedTimeStart, allowedTimeEnd, leadHours, bufferMinutes, slotIncrement, adminTimezone, ownerUserId]);
-
-  const isDateAllowed = useCallback((dateStr: string) => {
-    if (!allowedDays || allowedDays.length === 0) return true;
-    const date = new Date(dateStr + 'T00:00:00');
-    return allowedDays.includes(date.getDay());
-  }, [allowedDays]);
+  }, [rules, overrides, settings, fetchBookingsForDate, durationMinutes, activeRestrictions, leadHours, bufferMinutes, slotIncrement, adminTimezone, ownerUserId]);
 
   const handleDateSelect = (dateStr: string) => {
-    if (!isDateAllowed(dateStr)) return;
     setSelectedDate(dateStr);
     setSelectedSlot(null);
+    setStep('time');
+    loadSlots(dateStr);
+  };
+
+  const displaySlots = useMemo(() =>
+    slots.map(s => convertTimeSlot(s, selectedDate || '', adminTimezone, clientTimezone)),
+    [slots, selectedDate, adminTimezone, clientTimezone]
+  );
+
+  const handleSlotSelect = (slot: string) => {
+    const adminSlot = convertTimeSlotWithDate(slot, selectedDate || '', clientTimezone, adminTimezone);
+    setSelectedDate(adminSlot.date);
+    setSelectedSlot(adminSlot.time);
+    setConflictError('');
+  };
+
+  const handleContinueFromTime = () => {
+    if (!selectedSlot) return;
     setStep('recurrence');
   };
+
+  // Check if a given date is available under the active ruleset
+  const isDateAvailable = useCallback((date: Date): boolean => {
+    if (activeRestrictions) {
+      return isDateSelectable(date, rules, overrides, activeRestrictions);
+    }
+    return isDateSelectable(date, rules, overrides, null);
+  }, [activeRestrictions, rules, overrides]);
+
+  const recurringDates = useMemo(() => {
+    if (!selectedDate || !link) return [];
+    const dates: string[] = [selectedDate];
+    const start = new Date(selectedDate + 'T00:00:00');
+    const maxOccurrences = parseInt(occurrences) || 0;
+
+    if (frequency === 'monthly') {
+      if (link.is_ongoing) {
+        for (let i = 1; ; i++) {
+          const next = addMonths(start, i);
+          if (next > maxDate) break;
+          dates.push(formatDate(next));
+        }
+        return dates;
+      }
+      for (let i = 1; ; i++) {
+        const next = addMonths(start, i);
+        if (next > maxDate) break;
+        const nextStr = formatDate(next);
+        if (endDate && nextStr > endDate) break;
+        if (maxOccurrences > 0 && dates.length >= maxOccurrences) break;
+        dates.push(nextStr);
+      }
+      return dates;
+    }
+
+    const intervalDays = frequency === 'daily' ? 1 : frequency === 'weekly' ? 7 : frequency === 'biweekly' ? 14 : 0;
+    if (intervalDays === 0) return dates;
+
+    if (frequency === 'daily') {
+      // For daily: walk forward day-by-day, only including available days
+      if (link.is_ongoing) {
+        let current = addDays(start, 1);
+        while (current <= maxDate) {
+          if (isDateAvailable(current)) {
+            dates.push(formatDate(current));
+          }
+          current = addDays(current, 1);
+        }
+        return dates;
+      }
+      let current = addDays(start, 1);
+      while (current <= maxDate) {
+        const currentStr = formatDate(current);
+        if (endDate && currentStr > endDate) break;
+        if (maxOccurrences > 0 && dates.length >= maxOccurrences) break;
+        if (isDateAvailable(current)) {
+          dates.push(currentStr);
+        }
+        current = addDays(current, 1);
+      }
+      return dates;
+    }
+
+    // Weekly / Biweekly
+    if (link.is_ongoing) {
+      for (let i = 1; ; i++) {
+        const next = addDays(start, intervalDays * i);
+        if (next > maxDate) break;
+        dates.push(formatDate(next));
+      }
+      return dates;
+    }
+
+    for (let i = 1; ; i++) {
+      const next = addDays(start, intervalDays * i);
+      if (next > maxDate) break;
+      const nextStr = formatDate(next);
+      if (endDate && nextStr > endDate) break;
+      if (maxOccurrences > 0 && dates.length >= maxOccurrences) break;
+      dates.push(nextStr);
+    }
+    return dates;
+  }, [selectedDate, frequency, occurrences, endDate, maxDate, link, isDateAvailable]);
 
   const handleContinueFromRecurrence = () => {
     if (!link) return;
@@ -180,48 +301,8 @@ export default function RecurringBookingPage() {
       }
     }
     setRecurrenceError('');
-    setStep('time');
-    if (selectedDate) loadSlots(selectedDate);
+    checkConflicts();
   };
-
-  const displaySlots = useMemo(() =>
-    slots.map(s => convertTimeSlot(s, selectedDate || '', adminTimezone, clientTimezone)),
-    [slots, selectedDate, adminTimezone, clientTimezone]
-  );
-
-  const handleSlotSelect = (slot: string) => {
-    const adminSlot = convertTimeSlotWithDate(slot, selectedDate || '', clientTimezone, adminTimezone);
-    setSelectedDate(adminSlot.date);
-    setSelectedSlot(adminSlot.time);
-    setConflictError('');
-  };
-
-  const recurringDates = useMemo(() => {
-    if (!selectedDate || !link) return [];
-    const dates: string[] = [selectedDate];
-    const start = new Date(selectedDate + 'T00:00:00');
-    const intervalDays = frequency === 'daily' ? 1 : frequency === 'weekly' ? 7 : frequency === 'biweekly' ? 14 : 30;
-    const maxOccurrences = parseInt(occurrences) || 0;
-
-    if (link.is_ongoing) {
-      for (let i = 1; ; i++) {
-        const next = addDays(start, intervalDays * i);
-        if (next > maxDate) break;
-        dates.push(formatDate(next));
-      }
-      return dates;
-    }
-
-    for (let i = 1; ; i++) {
-      const next = addDays(start, intervalDays * i);
-      if (next > maxDate) break;
-      const nextStr = formatDate(next);
-      if (endDate && nextStr > endDate) break;
-      if (maxOccurrences > 0 && dates.length >= maxOccurrences) break;
-      dates.push(nextStr);
-    }
-    return dates;
-  }, [selectedDate, frequency, occurrences, endDate, maxDate, link]);
 
   const checkConflicts = useCallback(async () => {
     if (!selectedSlot) return;
@@ -232,19 +313,21 @@ export default function RecurringBookingPage() {
     for (let i = 0; i < recurringDates.length; i++) {
       const date = recurringDates[i];
       const dateObj = new Date(date + 'T00:00:00');
-      const dayOfWeek = dateObj.getDay();
 
       let isConflict = false;
 
-      if (allowedDays && allowedDays.length > 0 && !allowedDays.includes(dayOfWeek)) {
-        isConflict = true;
+      if (activeRestrictions) {
+        const dayOfWeek = dateObj.getDay();
+        if (!activeRestrictions.some(r => r.day === dayOfWeek)) {
+          isConflict = true;
+        }
       }
 
       if (!isConflict) {
         const existing = await fetchBookingsForDate(date, ownerUserId);
         let filtered: string[];
-        if (allowedTimeStart && allowedTimeEnd) {
-          filtered = generateSlotsInRange(dateObj, allowedTimeStart, allowedTimeEnd, existing, durationMinutes, leadHours, bufferMinutes, slotIncrement, adminTimezone);
+        if (activeRestrictions) {
+          filtered = generateSlotsForRestrictions(dateObj, activeRestrictions, existing, durationMinutes, leadHours, bufferMinutes, slotIncrement, adminTimezone);
         } else {
           filtered = generateTimeSlots(dateObj, rules, overrides, existing, durationMinutes, leadHours, bufferMinutes, slotIncrement, adminTimezone);
         }
@@ -265,30 +348,27 @@ export default function RecurringBookingPage() {
     setSessionConflicts(conflicts);
     setConflictChecking(false);
 
-    if (isFlexible && conflicts.some(c => c.hasConflict)) {
+    if (conflicts.some(c => c.hasConflict)) {
       setStep('conflicts');
-    } else if (!isFlexible && conflicts.some(c => c.hasConflict)) {
-      setStep('time');
-      setConflictError('This time slot would result in sessions with scheduling conflicts. Please choose a different time.');
     } else {
       setStep('form');
     }
-  }, [recurringDates, selectedSlot, allowedDays, allowedTimeStart, allowedTimeEnd, fetchBookingsForDate, rules, overrides, durationMinutes, leadHours, bufferMinutes, slotIncrement, isFlexible, ownerUserId]);
+  }, [recurringDates, selectedSlot, activeRestrictions, fetchBookingsForDate, rules, overrides, durationMinutes, leadHours, bufferMinutes, slotIncrement, adminTimezone, ownerUserId]);
 
   const loadRescheduleSlots = useCallback(async (conflictIndex: number, dateStr: string) => {
     setRescheduleSlotsLoading(prev => ({ ...prev, [conflictIndex]: true }));
     const existing = await fetchBookingsForDate(dateStr, ownerUserId);
     const dateObj = new Date(dateStr + 'T00:00:00');
     let available: string[];
-    if (allowedTimeStart && allowedTimeEnd) {
-      available = generateSlotsInRange(dateObj, allowedTimeStart, allowedTimeEnd, existing, durationMinutes, leadHours, bufferMinutes, slotIncrement, adminTimezone);
+    if (activeRestrictions) {
+      available = generateSlotsForRestrictions(dateObj, activeRestrictions, existing, durationMinutes, leadHours, bufferMinutes, slotIncrement, adminTimezone);
     } else {
       available = generateTimeSlots(dateObj, rules, overrides, existing, durationMinutes, leadHours, bufferMinutes, slotIncrement, adminTimezone);
     }
 
     setRescheduleSlots(prev => ({ ...prev, [conflictIndex]: available }));
     setRescheduleSlotsLoading(prev => ({ ...prev, [conflictIndex]: false }));
-  }, [fetchBookingsForDate, rules, overrides, durationMinutes, leadHours, bufferMinutes, slotIncrement, allowedTimeStart, allowedTimeEnd, adminTimezone, ownerUserId]);
+  }, [fetchBookingsForDate, rules, overrides, durationMinutes, leadHours, bufferMinutes, slotIncrement, activeRestrictions, adminTimezone, ownerUserId]);
 
   const handleConflictResolution = (index: number, resolution: ConflictResolution) => {
     setSessionConflicts(prev => prev.map(c =>
@@ -426,7 +506,8 @@ export default function RecurringBookingPage() {
     );
   }
 
-  const stepOrder: (BookingStep | 'recurrence' | 'conflicts')[] = ['calendar', 'recurrence', 'time', ...(isFlexible ? ['conflicts' as const] : []), 'form'];
+  // Step order: calendar -> time -> recurrence -> conflicts -> form -> confirm
+  const stepOrder: (BookingStep | 'recurrence' | 'conflicts')[] = ['calendar', 'time', 'recurrence', 'conflicts', 'form'];
 
   const conflictedCount = sessionConflicts.filter(c => c.hasConflict).length;
 
@@ -440,10 +521,10 @@ export default function RecurringBookingPage() {
       {step !== 'calendar' && step !== 'confirm' && (
         <button
           onClick={() => {
-            if (step === 'form') setStep(isFlexible && conflictedCount > 0 ? 'conflicts' : 'time');
-            else if (step === 'conflicts') setStep('time');
-            else if (step === 'time') { setStep('recurrence'); setSelectedSlot(null); setConflictError(''); }
-            else if (step === 'recurrence') { setStep('calendar'); setSelectedDate(null); setRecurrenceError(''); }
+            if (step === 'form') setStep(conflictedCount > 0 ? 'conflicts' : 'recurrence');
+            else if (step === 'conflicts') setStep('recurrence');
+            else if (step === 'recurrence') { setStep('time'); setRecurrenceError(''); }
+            else if (step === 'time') { setStep('calendar'); setSelectedDate(null); setSelectedSlot(null); setConflictError(''); }
           }}
           className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-4 transition-colors"
         >
@@ -456,9 +537,9 @@ export default function RecurringBookingPage() {
         <ProgressIndicator
           steps={[
             'Select Date',
-            'Recurrence',
             'Select Time',
-            ...(isFlexible ? ['Conflicts'] : []),
+            'Recurrence',
+            'Conflicts',
             'Your Info',
             'Confirmation',
           ]}
@@ -489,10 +570,37 @@ export default function RecurringBookingPage() {
               />
             </div>
 
-            {allowedDays && allowedDays.length > 0 && (
+            {hasRestrictions && canBrowseFullAvailability && (
+              <div className="mb-4">
+                <button
+                  onClick={() => setUseFullAvailability(!useFullAvailability)}
+                  className={`w-full flex items-center gap-3 rounded-lg border p-3 text-left transition-colors ${
+                    useFullAvailability
+                      ? 'border-jungo-green-500 bg-jungo-green-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <CalendarDays className="w-5 h-5 text-jungo-green-600 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">
+                      {useFullAvailability ? 'Browsing full availability' : 'Browsing restricted times'}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {useFullAvailability
+                        ? 'Showing all available days. Click to switch to your curated time slots.'
+                        : 'Showing curated time slots. Click to browse all available days.'}
+                    </p>
+                  </div>
+                </button>
+              </div>
+            )}
+
+            {activeRestrictions && (
               <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700">
                 <p className="font-medium">Available Days</p>
-                <p className="text-xs mt-0.5">You can only start on: {allowedDays.map(d => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d]).join(', ')}</p>
+                <p className="text-xs mt-0.5">
+                  You can only start on: {activeRestrictions.map(r => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][r.day]).join(', ')}
+                </p>
               </div>
             )}
 
@@ -509,14 +617,47 @@ export default function RecurringBookingPage() {
               rules={rules}
               overrides={overrides}
               maxDate={maxDate}
-              allowedDays={allowedDays}
-              allowedTimeStart={allowedTimeStart}
-              allowedTimeEnd={allowedTimeEnd}
+              timeRestrictions={activeRestrictions}
             />
           </>
         )}
 
-        {step === 'recurrence' && selectedDate && (
+        {step === 'time' && selectedDate && (
+          <div className="animate-slide-up space-y-5">
+            <h3 className="text-lg font-semibold text-gray-900">Select a Time</h3>
+            <p className="text-sm text-gray-500">
+              Choose the time for your recurring sessions. All sessions will use the same time of day.
+            </p>
+            <TimeSlotPicker
+              date={selectedDate}
+              slots={displaySlots}
+              selectedSlot={selectedSlot ? convertTimeSlot(selectedSlot, selectedDate, adminTimezone, clientTimezone) : null}
+              onSelectSlot={handleSlotSelect}
+              loading={slotsLoading}
+              timezone={clientTimezone}
+            />
+
+            {conflictError && (
+              <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg p-3">
+                <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+                <p className="text-sm text-red-700">{conflictError}</p>
+              </div>
+            )}
+
+            {selectedSlot && (
+              <Button
+                className="w-full"
+                size="lg"
+                onClick={handleContinueFromTime}
+                icon={<CalendarClock className="w-5 h-5" />}
+              >
+                Continue to Recurrence
+              </Button>
+            )}
+          </div>
+        )}
+
+        {step === 'recurrence' && selectedDate && selectedSlot && (
           <div className="animate-slide-up space-y-5">
             <h3 className="text-lg font-semibold text-gray-900">Recurrence Details</h3>
 
@@ -584,7 +725,7 @@ export default function RecurringBookingPage() {
                   Schedule Preview ({recurringDates.length} sessions)
                   {frequency === 'daily' && recurringDates.length > 20 && (
                     <span className="text-xs text-gray-400 ml-2">
-                      ({recurringDates.length} daily sessions will be created)
+                      ({recurringDates.length} sessions will be created)
                     </span>
                   )}
                 </p>
@@ -610,62 +751,11 @@ export default function RecurringBookingPage() {
               className="w-full"
               size="lg"
               onClick={handleContinueFromRecurrence}
+              loading={conflictChecking}
               icon={<CalendarClock className="w-5 h-5" />}
             >
-              Continue to Time Selection
+              {conflictChecking ? 'Checking availability...' : 'Check Availability & Continue'}
             </Button>
-          </div>
-        )}
-
-        {step === 'time' && selectedDate && (
-          <div className="animate-slide-up space-y-5">
-            <h3 className="text-lg font-semibold text-gray-900">Select a Time</h3>
-            <p className="text-sm text-gray-500">
-              Choose the time for your recurring sessions. All sessions will use the same time of day.
-            </p>
-            <TimeSlotPicker
-              date={selectedDate}
-              slots={displaySlots}
-              selectedSlot={selectedSlot ? convertTimeSlot(selectedSlot, selectedDate, adminTimezone, clientTimezone) : null}
-              onSelectSlot={handleSlotSelect}
-              loading={slotsLoading}
-              timezone={clientTimezone}
-            />
-
-            {selectedSlot && recurringDates.length > 0 && (
-              <div className="bg-gray-50 rounded-lg p-4 border">
-                <p className="text-sm font-medium text-gray-700 mb-2">
-                  Schedule Preview ({recurringDates.length} sessions)
-                </p>
-                <div className="space-y-1 max-h-40 overflow-y-auto">
-                  {recurringDates.map((d, i) => (
-                    <p key={d} className="text-sm text-gray-600">
-                      <span className="text-gray-400 mr-2">#{i + 1}</span>
-                      {formatDisplayDate(d)} at {formatTime(convertTimeSlot(selectedSlot, d, adminTimezone, clientTimezone))}
-                    </p>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {conflictError && (
-              <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg p-3">
-                <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
-                <p className="text-sm text-red-700">{conflictError}</p>
-              </div>
-            )}
-
-            {selectedSlot && (
-              <Button
-                className="w-full"
-                size="lg"
-                onClick={checkConflicts}
-                loading={conflictChecking}
-                icon={<CalendarClock className="w-5 h-5" />}
-              >
-                {conflictChecking ? 'Checking for conflicts...' : 'Check Availability & Continue'}
-              </Button>
-            )}
           </div>
         )}
 

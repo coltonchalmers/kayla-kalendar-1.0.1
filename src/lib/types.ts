@@ -160,6 +160,12 @@ export interface ProposalSlot {
   created_at: string;
 }
 
+export interface TimeRestriction {
+  day: number;
+  start: string;
+  end: string;
+}
+
 export interface RecurringLink {
   id: string;
   user_id: string;
@@ -176,9 +182,8 @@ export interface RecurringLink {
   meeting_type_id: string | null;
   is_ongoing: boolean;
   scheduling_mode: 'strict' | 'flexible';
-  allowed_days: number[] | null;
-  allowed_time_start: string | null;
-  allowed_time_end: string | null;
+  time_restrictions: TimeRestriction[] | null;
+  allow_full_availability: boolean;
   notes_to_client: string | null;
   internal_notes: string | null;
   expires_at: string | null;
