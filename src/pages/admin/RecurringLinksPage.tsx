@@ -50,6 +50,7 @@ export default function RecurringLinksPage() {
   const [clientEmail, setClientEmail] = useState('');
   const [label, setLabel] = useState('');
   const [meetingTypeId, setMeetingTypeId] = useState('');
+  const [meetingLocationType, setMeetingLocationType] = useState('zoom');
   const [frequency, setFrequency] = useState('');
   const [occurrences, setOccurrences] = useState('');
   const [endDate, setEndDate] = useState('');
