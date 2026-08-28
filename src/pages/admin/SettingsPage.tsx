@@ -793,7 +793,7 @@ export default function SettingsPage() {
           <Card>
             <h2 className="text-lg font-semibold text-gray-900 mb-1">Zoom Integration</h2>
             <p className="text-sm text-gray-500 mb-5">
-              When enabled, a Zoom meeting is automatically created for each booking and the join link is included in the confirmation email.
+              A default or overridden Zoom join link is included in the confirmation email.
             </p>
             <label className="flex items-center gap-3 cursor-pointer">
               <input
