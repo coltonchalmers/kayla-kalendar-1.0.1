@@ -248,6 +248,7 @@ export default function RecurringLinksPage() {
     setEditEmail(link.client_email);
     setEditLabel(link.label || '');
     setEditMeetingTypeId(link.meeting_type_id || '');
+    setMeetingLocationType(mt.meeting_location_type || '');
     setEditFrequency(link.frequency || '');
     setEditOccurrences(link.occurrences?.toString() || '');
     setEditEndDate(link.end_date || '');
