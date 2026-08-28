@@ -194,6 +194,7 @@ export default function RecurringLinksPage() {
         allow_client_frequency: allowFrequency,
         allow_client_end_date: allowEndDate,
         meeting_type_id: meetingTypeId || null,
+        meeting_location_type: meetingLocationType || null,
         is_ongoing: isOngoing,
         scheduling_mode: 'flexible',
         time_restrictions: ruleDrafts.length > 0 ? ruleDrafts : null,
