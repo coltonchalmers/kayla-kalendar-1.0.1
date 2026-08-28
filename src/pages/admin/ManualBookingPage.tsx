@@ -125,6 +125,7 @@ export default function ManualBookingPage() {
         notes_to_client: notesToClient.trim() || undefined,
         source: 'admin',
         meeting_type_id: meetingTypeId || undefined,
+        meeting_location_type: meetingLocationType,
       });
       setSuccess(true);
       triggerBookingEmails(booking.id);
