@@ -7,5 +7,5 @@ export function isValidEmail(email: string): boolean {
 
 export function isValidPhone(phone: string): boolean {
   if (!phone.trim()) return true;
-  return /^[\d\s()+\-./]{7,}$/.test(phone.trim());
+  return /^\+?[1-9]\d{1,14}$/.test(phone.trim());
 }
