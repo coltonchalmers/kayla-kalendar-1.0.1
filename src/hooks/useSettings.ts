@@ -122,7 +122,6 @@ export function useSettings(userId?: string) {
       email_from_name: '',
       email_from_address: '',
       zoom_enabled: false,
-      zoom_default_passcode: null,
       zoom_default_link: null,
       site_url: null,
       timezone: 'America/New_York',
