@@ -79,6 +79,7 @@ export default function RecurringLinksPage() {
   const [editEmail, setEditEmail] = useState('');
   const [editLabel, setEditLabel] = useState('');
   const [editMeetingTypeId, setEditMeetingTypeId] = useState('');
+  const [editMeetingLocationType, setEditMeetingLocationType] = useState('');
   const [editFrequency, setEditFrequency] = useState('');
   const [editOccurrences, setEditOccurrences] = useState('');
   const [editEndDate, setEditEndDate] = useState('');
