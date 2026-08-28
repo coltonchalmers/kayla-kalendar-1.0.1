@@ -733,6 +733,16 @@ export default function ProposalLinksPage() {
               ...meetingTypes.map(mt => ({ value: mt.id, label: `${mt.name} (${mt.duration_minutes} min)` })),
             ]}
           />
+          <Select
+            label="Meeting Location"
+            value={meetingLocationType}
+            onChange={e => setMeetingLocationType(e.target.value)}  options={[
+              { value: '', label: 'Let Client Choose' },
+              { value: 'zoom', label: 'Zoom' },
+              { value: 'phone', label: 'Phone' },
+            ]}
+            hint="Choose a location or let the client decide when they book."
+            />
 
           <Input label="Label (internal note)" value={editLabel} onChange={e => setEditLabel(e.target.value)} placeholder="e.g., Follow-up options" />
 
