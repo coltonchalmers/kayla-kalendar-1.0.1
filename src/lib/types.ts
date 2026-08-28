@@ -128,7 +128,6 @@ export interface Booking {
   zoom_link: string | null;
   booking_token: string | null;
   zoom_passcode: string | null;
-  zoom_passcode_random: boolean;
   created_at: string;
   updated_at: string;
 }
