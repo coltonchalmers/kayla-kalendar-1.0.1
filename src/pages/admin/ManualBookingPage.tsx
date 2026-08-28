@@ -266,18 +266,6 @@ export default function ManualBookingPage() {
             <Textarea label="Internal Notes (admin only)" value={internalNotes} onChange={e => setInternalNotes(e.target.value)} rows={2} placeholder="Private notes not visible to the client..." />
             <Textarea label="Notes to Client" value={notesToClient} onChange={e => setNotesToClient(e.target.value)} rows={2} placeholder="Notes visible to the client in emails and manage page..." />
 
-            {settings?.zoom_enabled && (
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={zoomPasscodeRandom}
-                  onChange={e => setZoomPasscodeRandom(e.target.checked)}
-                  className="w-4 h-4 rounded border-gray-300 text-jungo-green-500 focus:ring-jungo-green-500"
-                />
-                <span className="text-sm text-gray-700">Randomly generate Zoom passcode for this meeting</span>
-              </label>
-            )}
-
             {selectedDate && (selectedSlot || (useCustomTime && customTime)) && (
               <div className="bg-jungo-green-50 border border-jungo-green-200 rounded-lg p-3 text-sm">
                 <p className="font-medium text-jungo-green-800">{formatDisplayDate(selectedDate)}</p>
