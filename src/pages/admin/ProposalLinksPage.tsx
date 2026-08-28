@@ -257,6 +257,7 @@ export default function ProposalLinksPage() {
         client_email: editEmail.trim(),
         label: editLabel.trim() || null,
         meeting_type_id: editMeetingTypeId || null,
+        meeting_location_type: editMeetingLocationType || null,
         expires_at: editExpiresAt ? new Date(editExpiresAt + 'T23:59:59').toISOString() : null,
         notes_to_client: editNotesToClient.trim() || null,
         internal_notes: editInternalNotes.trim() || null,
