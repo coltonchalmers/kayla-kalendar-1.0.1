@@ -66,6 +66,7 @@ export default function MeetingTypesPage() {
         name: name.trim(),
         description: description.trim() || null,
         duration_minutes: parseInt(duration) || 30,
+        meeting_location_type: meetingLocationType || null,
         is_active: isActive,
         zoom_link: zoomLink.trim() || null,
         contact_email_override: contactEmailOverride.trim() || null,
