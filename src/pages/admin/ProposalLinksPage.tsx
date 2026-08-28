@@ -13,6 +13,7 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { formatTime, formatDisplayDate, classNames, timeToMinutes, minutesToTime } from '@/lib/utils';
 import { triggerInviteEmail } from '@/lib/bookingEmails';
 import type { ProposalLinkWithSlots } from '@/hooks/useProposalLinks';
+import type { MeetingLocationType } from '@/lib/types';
 
 interface SlotDraft {
   date: string;
@@ -59,6 +60,7 @@ export default function ProposalLinksPage() {
   const [notesToClient, setNotesToClient] = useState('');
   const [internalNotes, setInternalNotes] = useState('');
   const [allowFullAvailability, setAllowFullAvailability] = useState(true);
+  const [meetingLocationType, setMeetingLocationType] = useState<MeetingLocationType | ''>('');
 
   // Edit modal state
   const [editTarget, setEditTarget] = useState<ProposalLinkWithSlots | null>(null);
@@ -67,7 +69,7 @@ export default function ProposalLinksPage() {
   const [editEmail, setEditEmail] = useState('');
   const [editLabel, setEditLabel] = useState('');
   const [editMeetingTypeId, setEditMeetingTypeId] = useState('');
-  const [editMeetingLocationType, setEditMeetingLocationType] = useState('');
+  const [editMeetingLocationType, setEditMeetingLocationType] = useState<MeetingLocationType | ''>('');
   const [editExpiresAt, setEditExpiresAt] = useState('');
   const [editNotesToClient, setEditNotesToClient] = useState('');
   const [editInternalNotes, setEditInternalNotes] = useState('');
@@ -139,6 +141,7 @@ export default function ProposalLinksPage() {
     setNotesToClient('');
     setInternalNotes('');
     setAllowFullAvailability(true);
+    setMeetingLocationType('');
   };
 
   const handleCreate = async () => {
@@ -215,7 +218,7 @@ export default function ProposalLinksPage() {
     setEditEmail(proposal.client_email);
     setEditLabel(proposal.label || '');
     setEditMeetingTypeId(proposal.meeting_type_id || '');
-    setMeetingLocationType(mt.meeting_location_type || '');
+    setEditMeetingLocationType(proposal.meeting_location_type || '');
     setEditExpiresAt(proposal.expires_at ? new Date(proposal.expires_at).toISOString().slice(0, 10) : '');
     setEditNotesToClient(proposal.notes_to_client || '');
     setEditInternalNotes(proposal.internal_notes || '');
@@ -521,7 +524,7 @@ export default function ProposalLinksPage() {
           <Select
             label="Meeting Location"
             value={meetingLocationType}
-            onChange={e => setMeetingLocationType(e.target.value)}  options={[
+            onChange={e => setMeetingLocationType(e.target.value as MeetingLocationType | '')}  options={[
               { value: '', label: 'Let Client Choose' },
               { value: 'zoom', label: 'Zoom' },
               { value: 'phone', label: 'Phone' },
@@ -739,8 +742,8 @@ export default function ProposalLinksPage() {
           />
           <Select
             label="Meeting Location"
-            value={meetingLocationType}
-            onChange={e => setMeetingLocationType(e.target.value)}  options={[
+            value={editMeetingLocationType}
+            onChange={e => setEditMeetingLocationType(e.target.value as MeetingLocationType | '')}  options={[
               { value: '', label: 'Let Client Choose' },
               { value: 'zoom', label: 'Zoom' },
               { value: 'phone', label: 'Phone' },

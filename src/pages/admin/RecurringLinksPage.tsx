@@ -12,7 +12,7 @@ import Modal from '@/components/ui/Modal';
 import Badge from '@/components/ui/Badge';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { triggerInviteEmail } from '@/lib/bookingEmails';
-import { DAY_NAMES, type RecurringLink, type TimeRestriction } from '@/lib/types';
+import { DAY_NAMES, type RecurringLink, type TimeRestriction, type MeetingLocationType } from '@/lib/types';
 import { formatTime, timeToMinutes, classNames } from '@/lib/utils';
 
 function isValidEmail(email: string): boolean {
@@ -50,7 +50,7 @@ export default function RecurringLinksPage() {
   const [clientEmail, setClientEmail] = useState('');
   const [label, setLabel] = useState('');
   const [meetingTypeId, setMeetingTypeId] = useState('');
-  const [meetingLocationType, setMeetingLocationType] = useState('zoom');
+  const [meetingLocationType, setMeetingLocationType] = useState<MeetingLocationType | ''>('');
   const [frequency, setFrequency] = useState('');
   const [occurrences, setOccurrences] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -79,7 +79,7 @@ export default function RecurringLinksPage() {
   const [editEmail, setEditEmail] = useState('');
   const [editLabel, setEditLabel] = useState('');
   const [editMeetingTypeId, setEditMeetingTypeId] = useState('');
-  const [editMeetingLocationType, setEditMeetingLocationType] = useState('');
+  const [editMeetingLocationType, setEditMeetingLocationType] = useState<MeetingLocationType | ''>('');
   const [editFrequency, setEditFrequency] = useState('');
   const [editOccurrences, setEditOccurrences] = useState('');
   const [editEndDate, setEditEndDate] = useState('');
@@ -251,7 +251,7 @@ export default function RecurringLinksPage() {
     setEditEmail(link.client_email);
     setEditLabel(link.label || '');
     setEditMeetingTypeId(link.meeting_type_id || '');
-    setMeetingLocationType(mt.meeting_location_type || '');
+    setEditMeetingLocationType(link.meeting_location_type || '');
     setEditFrequency(link.frequency || '');
     setEditOccurrences(link.occurrences?.toString() || '');
     setEditEndDate(link.end_date || '');
@@ -533,7 +533,7 @@ export default function RecurringLinksPage() {
           <Select
             label="Meeting Location"
             value={meetingLocationType}
-            onChange={e => setMeetingLocationType(e.target.value)}
+            onChange={e => setMeetingLocationType(e.target.value as MeetingLocationType | '')}
             options={[
               { value: '', label: 'Let Client Choose' },
               { value: 'zoom', label: 'Zoom' },
@@ -696,8 +696,8 @@ export default function RecurringLinksPage() {
           />
           <Select
             label="Meeting Location"
-            value={meetingLocationType}
-            onChange={e => setMeetingLocationType(e.target.value)}
+            value={editMeetingLocationType}
+            onChange={e => setEditMeetingLocationType(e.target.value as MeetingLocationType | '')}
             options={[
               { value: '', label: 'Let Client Choose' },
               { value: 'zoom', label: 'Zoom' },

@@ -259,7 +259,7 @@ export default function ManualBookingPage() {
             <Select
               label="Meeting Location"
               value={meetingLocationType}
-              onChange={e => setMeetingLocationType(e.target.value)}
+              onChange={e => setMeetingLocationType(e.target.value as 'zoom' | 'phone')}
               options={[
                 { value: 'zoom', label: 'Zoom' },
                 { value: 'phone', label: 'Phone' },
