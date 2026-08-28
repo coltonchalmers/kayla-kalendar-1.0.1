@@ -65,7 +65,6 @@ interface Booking {
   duration_minutes: number;
   status: string;
   zoom_link: string | null;
-  zoom_passcode: string | null;
   booking_token: string | null;
   meeting_type_id: string | null;
   recurrence_group_id: string | null;
