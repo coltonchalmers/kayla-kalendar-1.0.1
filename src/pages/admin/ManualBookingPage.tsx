@@ -149,6 +149,7 @@ export default function ManualBookingPage() {
     setClientNotes('');
     setInternalNotes('');
     setNotesToClient('');
+    setMeetingLocationType('zoom');
     setFormErrors({});
     setSuccess(false);
     setConflictWarning(null);
