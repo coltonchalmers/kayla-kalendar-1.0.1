@@ -124,7 +124,6 @@ export default function ManualBookingPage() {
         notes_to_client: notesToClient.trim() || undefined,
         source: 'admin',
         meeting_type_id: meetingTypeId || undefined,
-        zoom_passcode_random: zoomPasscodeRandom,
       });
       setSuccess(true);
       triggerBookingEmails(booking.id);
@@ -148,7 +147,6 @@ export default function ManualBookingPage() {
     setClientNotes('');
     setInternalNotes('');
     setNotesToClient('');
-    setZoomPasscodeRandom(false);
     setFormErrors({});
     setSuccess(false);
     setConflictWarning(null);
