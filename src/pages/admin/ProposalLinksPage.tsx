@@ -522,8 +522,8 @@ export default function ProposalLinksPage() {
               { value: 'zoom', label: 'Zoom' },
               { value: 'phone', label: 'Phone' },
             ]}
-  hint="Choose a location or let the client decide when they book."
-/>
+            hint="Choose a location or let the client decide when they book."
+            />
 
 
           <Input label="Label (internal note)" value={label} onChange={e => setLabel(e.target.value)} placeholder="e.g., Follow-up options" />
