@@ -73,7 +73,7 @@ export default function IntakeForm({
     if (!lastName.trim()) newErrors.lastName = 'Last name is required';
     if (!email.trim()) newErrors.email = 'Email is required';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) newErrors.email = 'Please enter a valid email';
-    if (phone.trim() && !/^[\d\s()+\-./]{7,}$/.test(phone.trim())) {
+    if (phone.trim() && !/^\+?[1-9]\d{1,14}$/.test(phone.trim())) {
       newErrors.phone = 'Please enter a valid phone number';
     }
     setErrors(newErrors);
