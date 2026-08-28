@@ -51,6 +51,7 @@ export default function MeetingTypesPage() {
     setDescription(mt.description || '');
     setDuration(mt.duration_minutes.toString());
     setIsActive(mt.is_active);
+    setMeetingLocationType(mt.meeting_location_type || '');
     setZoomLink(mt.zoom_link || '');
     setContactEmailOverride(mt.contact_email_override || '');
     setContactPhoneOverride(mt.contact_phone_override || '');
