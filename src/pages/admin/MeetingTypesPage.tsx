@@ -22,6 +22,7 @@ export default function MeetingTypesPage() {
   const [isActive, setIsActive] = useState(true);
 
   const [zoomLink, setZoomLink] = useState('');
+  const [meetingLocationType, setMeetingLocationType] = useState('');
   const [contactEmailOverride, setContactEmailOverride] = useState('');
   const [contactPhoneOverride, setContactPhoneOverride] = useState('');
   const [saving, setSaving] = useState(false);
