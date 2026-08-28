@@ -215,6 +215,18 @@ export default function MeetingTypesPage() {
             value={duration}
             onChange={e => setDuration(e.target.value)}
           />
+          <Select
+            label="Meeting Location"
+            value={meetingLocationType}
+            onChange={e => setMeetingLocationType(e.target.value)}
+            options={[
+              { value: '', label: 'Let Client Choose' },
+              { value: 'zoom', label: 'Zoom' },
+              { value: 'phone', label: 'Phone' },
+              ]}
+            hint="Force a location or let the client decide when they book."
+          />
+
 
           {/* Collapsible Optional Overrides */}
           <div className="pt-3 border-t border-gray-100">
