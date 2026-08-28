@@ -37,6 +37,7 @@ export default function MeetingTypesPage() {
     setDuration('30');
     setIsActive(true);
 
+    setMeetingLocationType('');
     setZoomLink('');
     setContactEmailOverride('');
     setContactPhoneOverride('');
