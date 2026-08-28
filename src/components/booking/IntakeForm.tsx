@@ -1,11 +1,12 @@
-import { useState } from 'react';
-import { UserPlus, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { UserPlus, X, Phone, Video, Lock } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Textarea from '@/components/ui/Textarea';
 import Badge from '@/components/ui/Badge';
 import { formatTime, formatDisplayDate } from '@/lib/utils';
+import type { MeetingLocationType } from '@/lib/types';
 
 interface IntakeFormProps {
   date: string;
@@ -15,6 +16,7 @@ interface IntakeFormProps {
   loading?: boolean;
   prefillName?: string;
   prefillEmail?: string;
+  forcedLocation: MeetingLocationType | null;
 }
 
 export interface IntakeFormData {
@@ -25,6 +27,7 @@ export interface IntakeFormData {
   isExistingClient: boolean | null;
   guests: string[];
   clientNotes: string;
+  meetingLocation: MeetingLocationType;
 }
 
 export default function IntakeForm({
@@ -35,6 +38,7 @@ export default function IntakeForm({
   loading,
   prefillName,
   prefillEmail,
+  forcedLocation,
 }: IntakeFormProps) {
   const nameParts = prefillName?.split(' ') || [];
   const [firstName, setFirstName] = useState(nameParts[0] || '');
@@ -47,7 +51,29 @@ export default function IntakeForm({
   const [clientNotes, setClientNotes] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  const [meetingLocation, setMeetingLocation] = useState<MeetingLocationType>(
+    forcedLocation || 'zoom'
+  );
+
+  // If forcedLocation changes (e.g. navigating between links), sync the state
+  useEffect(() => {
+    if (forcedLocation) setMeetingLocation(forcedLocation);
+  }, [forcedLocation]);
+
+  const isPhone = meetingLocation === 'phone';
+  const isLocationLocked = forcedLocation !== null;
+
+  // When switching to phone, clear any guests that were added
+  const handleLocationChange = (loc: MeetingLocationType) => {
+    if (isLocationLocked) return;
+    setMeetingLocation(loc);
+    if (loc === 'phone' && guests.length > 0) {
+      setGuests([]);
+    }
+  };
+
   const addGuest = () => {
+    if (isPhone) return;
     const trimmed = guestInput.trim();
     if (!trimmed) return;
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
@@ -73,7 +99,9 @@ export default function IntakeForm({
     if (!lastName.trim()) newErrors.lastName = 'Last name is required';
     if (!email.trim()) newErrors.email = 'Email is required';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) newErrors.email = 'Please enter a valid email';
-    if (phone.trim() && !/^\+?[1-9]\d{1,14}$/.test(phone.trim())) {
+    if (isPhone && !phone.trim()) {
+      newErrors.phone = 'Phone number is required for phone meetings';
+    } else if (phone.trim() && !/^\+?[1-9]\d{1,14}$/.test(phone.trim())) {
       newErrors.phone = 'Please enter a valid phone number';
     }
     setErrors(newErrors);
@@ -91,6 +119,7 @@ export default function IntakeForm({
       isExistingClient: isExistingClient === '' ? null : isExistingClient === 'yes',
       guests,
       clientNotes: clientNotes.trim(),
+      meetingLocation,
     });
   };
 
@@ -104,6 +133,47 @@ export default function IntakeForm({
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
+        {/* Meeting Location selector */}
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-gray-700">
+            Meeting Location <span className="text-red-500">*</span>
+          </label>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => handleLocationChange('zoom')}
+              disabled={isLocationLocked}
+              className={`flex items-center gap-2.5 rounded-lg border px-4 py-3 text-sm font-medium transition-colors ${
+                meetingLocation === 'zoom'
+                  ? 'border-jungo-green-500 bg-jungo-green-50 text-jungo-green-800'
+                  : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+              } ${isLocationLocked ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
+            >
+              <Video className="w-4 h-4 flex-shrink-0" />
+              Zoom Meeting
+            </button>
+            <button
+              type="button"
+              onClick={() => handleLocationChange('phone')}
+              disabled={isLocationLocked}
+              className={`flex items-center gap-2.5 rounded-lg border px-4 py-3 text-sm font-medium transition-colors ${
+                meetingLocation === 'phone'
+                  ? 'border-jungo-green-500 bg-jungo-green-50 text-jungo-green-800'
+                  : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+              } ${isLocationLocked ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
+            >
+              <Phone className="w-4 h-4 flex-shrink-0" />
+              Phone Call
+            </button>
+          </div>
+          {isLocationLocked && (
+            <p className="flex items-center gap-1 text-xs text-gray-400">
+              <Lock className="w-3 h-3" />
+              Meeting location is preset by the organizer.
+            </p>
+          )}
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input
             label="First Name"
@@ -136,6 +206,7 @@ export default function IntakeForm({
         <Input
           label="Contact Phone"
           type="tel"
+          required={isPhone}
           value={phone}
           onChange={e => setPhone(e.target.value)}
           error={errors.phone}
@@ -155,19 +226,32 @@ export default function IntakeForm({
 
         <div className="space-y-2">
           <label className="block text-sm font-medium text-gray-700">Add Guests (optional)</label>
-          <div className="flex gap-2">
+          <div className={`flex gap-2 ${isPhone ? 'opacity-50 pointer-events-none' : ''}`}>
             <Input
               value={guestInput}
               onChange={e => setGuestInput(e.target.value)}
               placeholder="guest@example.com"
               error={errors.guest}
               onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addGuest(); } }}
+              disabled={isPhone}
             />
-            <Button type="button" variant="outline" onClick={addGuest} icon={<UserPlus className="w-4 h-4" />} size="md">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={addGuest}
+              icon={<UserPlus className="w-4 h-4" />}
+              size="md"
+              disabled={isPhone}
+            >
               Add
             </Button>
           </div>
-          {guests.length > 0 && (
+          {isPhone && (
+            <p className="text-xs text-gray-500 italic">
+              Additional guests cannot be added to phone meetings.
+            </p>
+          )}
+          {guests.length > 0 && !isPhone && (
             <div className="flex flex-wrap gap-2 mt-2">
               {guests.map(g => (
                 <Badge key={g} variant="neutral" className="py-1 pr-1.5 pl-2.5">

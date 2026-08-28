@@ -49,6 +49,14 @@ interface Booking {
   booking_token: string | null;
   meeting_type_id: string | null;
   client_timezone: string | null;
+  meeting_location_type: string | null;
+}
+
+interface MeetingType {
+  id: string;
+  name: string;
+  zoom_link: string | null;
+  contact_phone_override: string | null;
 }
 
 function formatTime(time: string): string {
@@ -188,18 +196,30 @@ async function sendEmail(
   return true;
 }
 
-function buildReminderHtml(textBody: string, booking: Booking, settings: AdminSettings, siteUrl: string): string {
+function buildReminderHtml(textBody: string, booking: Booking, settings: AdminSettings, siteUrl: string, effectiveAdminPhone?: string): string {
   const sections: string[] = [];
   sections.push(`<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#1f2937;white-space:pre-wrap;">${textBody.replace(/</g, "&lt;").replace(/\n/g, "<br>")}</div>`);
 
   const elements = settings.email_notification_elements || { company_info: true, zoom: true, phone: true, google_calendar: true };
 
-  if (elements.zoom && booking.zoom_link) {
-    sections.push(`<div style="margin-top:20px;padding:16px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;">
-      <p style="margin:0;font-weight:600;color:#166534;">Zoom Meeting</p>
-      <p style="margin:8px 0 0 0;"><a href="${booking.zoom_link}" style="color:#15803d;word-break:break-all;">${booking.zoom_link}</a></p>
-      ${booking.zoom_passcode ? `<p style="margin:4px 0 0 0;color:#166534;">Passcode: ${booking.zoom_passcode}</p>` : ""}
+  const isPhoneMeeting = booking.meeting_location_type === 'phone';
+
+  if (isPhoneMeeting) {
+    const clientPhone = booking.client_phone || '';
+    const adminPhone = effectiveAdminPhone || settings.contact_phone || '';
+    sections.push(`<div style="margin-top:20px;padding:16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
+      <p style="margin:0;font-weight:600;color:#374151;">Phone Meeting Details</p>
+      <p style="margin:8px 0 0 0;color:#6b7280;font-size:14px;">You will receive a call at the number you provided: ${clientPhone}.</p>
+      <p style="margin:4px 0 0 0;color:#6b7280;font-size:14px;">Expect a call from ${settings.business_name} at: ${adminPhone}.</p>
     </div>`);
+  } else {
+    if (elements.zoom && booking.zoom_link) {
+      sections.push(`<div style="margin-top:20px;padding:16px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;">
+        <p style="margin:0;font-weight:600;color:#166534;">Zoom Meeting</p>
+        <p style="margin:8px 0 0 0;"><a href="${booking.zoom_link}" style="color:#15803d;word-break:break-all;">${booking.zoom_link}</a></p>
+        ${booking.zoom_passcode ? `<p style="margin:4px 0 0 0;color:#166534;">Passcode: ${booking.zoom_passcode}</p>` : ""}
+      </div>`);
+    }
   }
 
   if (booking.booking_token) {
@@ -307,7 +327,22 @@ Deno.serve(async (req: Request) => {
                 duration: booking.duration_minutes.toString(),
               });
 
-              const html = buildReminderHtml(textBody, booking, settings, effectiveSiteUrl);
+              let effectiveAdminPhone: string | undefined;
+              let effectiveZoomLink = booking.zoom_link;
+              if (booking.meeting_type_id) {
+                const { data: mt } = await supabase
+                  .from("meeting_types")
+                  .select("id, name, zoom_link, contact_phone_override")
+                  .eq("id", booking.meeting_type_id)
+                  .maybeSingle() as { data: MeetingType | null };
+                if (mt) {
+                  effectiveAdminPhone = mt.contact_phone_override || undefined;
+                  effectiveZoomLink = booking.zoom_link || mt.zoom_link || undefined;
+                }
+              }
+              const bookingWithZoom = { ...booking, zoom_link: effectiveZoomLink };
+
+              const html = buildReminderHtml(textBody, bookingWithZoom, settings, effectiveSiteUrl, effectiveAdminPhone);
               const subject = `${TEST_SUBJECT_PREFIX}Reminder: Your meeting with ${settings.business_name}`;
 
               const sent = await sendEmail(resendApiKey, fromName, fromEmail, booking.client_email, subject, html);

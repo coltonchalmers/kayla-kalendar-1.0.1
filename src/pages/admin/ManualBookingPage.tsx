@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { CalendarPlus, CheckCircle, AlertTriangle } from 'lucide-react';
+import { CalendarPlus, CircleCheck as CheckCircle, TriangleAlert as AlertTriangle } from 'lucide-react';
 import CalendarGrid from '@/components/calendar/CalendarGrid';
 import TimeSlotPicker from '@/components/calendar/TimeSlotPicker';
 import Card from '@/components/ui/Card';
@@ -22,7 +22,7 @@ export default function ManualBookingPage() {
   const { createBooking, fetchBookingsForDate } = useBookings({ autoFetch: false });
   const { settings, loading: settingsLoading } = useSettings();
   const { meetingTypes, loading: mtLoading } = useMeetingTypes();
-  const [meetingLocationType, setMeetingLocationType] = useState('zoom');
+  const [meetingLocationType, setMeetingLocationType] = useState<'zoom' | 'phone'>('zoom');
 
   const now = new Date();
   const [viewYear, setViewYear] = useState(now.getFullYear());

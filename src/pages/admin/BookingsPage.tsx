@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { Search, Filter, CalendarDays, Repeat, Clock, Copy, Check, Link2, Mail, Trash2, Send, AlertTriangle, UserPlus, UserCheck } from 'lucide-react';
+import { Search, Filter, CalendarDays, Repeat, Clock, Copy, Check, Link2, Mail, Trash2, Send, TriangleAlert as AlertTriangle, UserPlus, UserCheck, Phone, Video } from 'lucide-react';
 import { useBookings } from '@/hooks/useBookings';
 import { useMeetingTypes } from '@/hooks/useMeetingTypes';
 import { useAvailability } from '@/hooks/useAvailability';
@@ -32,6 +32,7 @@ export default function BookingsPage() {
   const [dateTo, setDateTo] = useState('');
   const [meetingTypeFilter, setMeetingTypeFilter] = useState('');
   const [clientTypeFilter, setClientTypeFilter] = useState<'all' | 'new' | 'existing'>('all');
+  const [locationFilter, setLocationFilter] = useState<'all' | 'zoom' | 'phone'>('all');
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -47,6 +48,11 @@ export default function BookingsPage() {
   }, [meetingTypes]);
 
   const isUnconfirmed = statusFilter === 'unconfirmed';
+
+  const filteredBookings = useMemo(() => {
+    if (locationFilter === 'all') return bookings;
+    return bookings.filter(b => b.meeting_location_type === locationFilter);
+  }, [bookings, locationFilter]);
 
   const doSearch = useCallback(() => {
     if (isUnconfirmed) return;
@@ -249,6 +255,23 @@ export default function BookingsPage() {
               </button>
             ))}
           </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-gray-500">Location:</span>
+            {(['all', 'zoom', 'phone'] as const).map(t => (
+              <button
+                key={t}
+                onClick={() => setLocationFilter(t)}
+                className={`px-3 py-1.5 text-sm rounded-full font-medium transition-colors capitalize ${
+                  locationFilter === t
+                    ? 'bg-jungo-green-500 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {t === 'all' ? 'All' : t === 'zoom' ? 'Zoom' : 'Phone'}
+              </button>
+            ))}
+          </div>
         </>
         )}
       </div>
@@ -329,19 +352,19 @@ export default function BookingsPage() {
             })}
           </div>
         )
-      ) : bookings.length === 0 ? (
+      ) : filteredBookings.length === 0 ? (
         <Card className="text-center py-16">
           <CalendarDays className="w-10 h-10 text-gray-300 mx-auto mb-3" />
           <p className="text-gray-500 font-medium">No bookings found.</p>
           <p className="text-sm text-gray-400 mt-1">
-            {search || statusFilter !== 'all' || dateFrom || dateTo || meetingTypeFilter
+            {search || statusFilter !== 'all' || dateFrom || dateTo || meetingTypeFilter || locationFilter !== 'all'
               ? 'Try adjusting your filters.'
               : 'When clients book, their appointments will appear here!'}
           </p>
         </Card>
       ) : (
         <div className="space-y-2">
-          {bookings.map(booking => (
+          {filteredBookings.map(booking => (
             <Card key={booking.id} hover onClick={() => setSelectedBooking(booking)}>
               <div className="flex items-center justify-between gap-4">
                 <div className="min-w-0 flex-1">
@@ -353,6 +376,17 @@ export default function BookingsPage() {
                   <div className="flex flex-wrap items-center gap-1.5 mt-1">
                     {booking.meeting_type_id && meetingTypeMap[booking.meeting_type_id] && (
                       <span className="text-xs text-jungo-green-600">{meetingTypeMap[booking.meeting_type_id]}</span>
+                    )}
+                    {booking.meeting_location_type === 'phone' ? (
+                      <Badge variant="neutral" className="text-xs">
+                        <Phone className="w-2.5 h-2.5 mr-0.5 inline" />
+                        Phone
+                      </Badge>
+                    ) : (
+                      <Badge variant="info" className="text-xs">
+                        <Video className="w-2.5 h-2.5 mr-0.5 inline" />
+                        Zoom
+                      </Badge>
                     )}
                     {booking.recurrence_group_id && (
                       <Badge variant="info" className="text-xs">
@@ -395,7 +429,7 @@ export default function BookingsPage() {
         </div>
       )}
 
-      {!isUnconfirmed && bookings.length > 0 && (
+      {!isUnconfirmed && filteredBookings.length > 0 && (
         <div className="flex items-center gap-4 text-xs text-gray-400 pt-2">
           <span className="font-medium text-gray-500">Notes:</span>
           <span className="flex items-center gap-1"><span className="text-blue-500 font-bold">*</span> Client</span>

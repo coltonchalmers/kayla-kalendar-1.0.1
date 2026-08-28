@@ -449,6 +449,7 @@ export default function RecurringBookingPage() {
           recurrence_group_id: groupId,
           client_timezone: clientTimezone,
           meeting_type_id: meetingType?.id || undefined,
+          meeting_location_type: formData.meetingLocation,
           user_id: link.user_id,
         });
         if (!firstBooking) firstBooking = booking;
@@ -902,6 +903,7 @@ export default function RecurringBookingPage() {
             loading={submitting}
             prefillName={link.client_name}
             prefillEmail={link.client_email}
+            forcedLocation={link.meeting_location_type || meetingType?.meeting_location_type || null}
           />
         )}
 

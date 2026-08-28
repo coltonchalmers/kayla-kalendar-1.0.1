@@ -73,12 +73,14 @@ interface Booking {
   notes_to_client: string | null;
   source: string | null;
   client_timezone: string | null;
+  meeting_location_type: string | null;
 }
 
 interface MeetingType {
   id: string;
   name: string;
   zoom_link: string | null;
+  contact_phone_override: string | null;
 }
 
 interface TriggerOptions {
@@ -336,26 +338,39 @@ function formatBookingTime(booking: Booking, adminTz: string): string {
   return formatTime(converted.time);
 }
 
-function buildEmailHtml(textBody: string, elements: EmailElements, booking: Booking, settings: AdminSettings, publicSiteUrl: string): string {
+function buildEmailHtml(textBody: string, elements: EmailElements, booking: Booking, settings: AdminSettings, publicSiteUrl: string, effectiveAdminPhone?: string): string {
   const sections: string[] = [];
 
   sections.push(`<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#1f2937;white-space:pre-wrap;">${textBody.replace(/</g, "&lt;").replace(/\n/g, "<br>")}</div>`);
 
-  // Prominent Zoom section
-  if (elements.zoom && booking.zoom_link) {
-    sections.push(`<div style="margin-top:20px;padding:16px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;">
-      <p style="margin:0;font-weight:600;color:#166534;">Zoom Meeting</p>
-      <p style="margin:8px 0 0 0;"><a href="${booking.zoom_link}" style="color:#15803d;word-break:break-all;">${booking.zoom_link}</a></p>
-      ${booking.zoom_passcode ? `<p style="margin:4px 0 0 0;color:#166534;">Passcode: ${booking.zoom_passcode}</p>` : ""}
-    </div>`);
-  }
+  const isPhoneMeeting = booking.meeting_location_type === 'phone';
 
-  // Prominent phone section (separate from company info)
-  if (elements.phone && settings.contact_phone) {
-    sections.push(`<div style="margin-top:12px;padding:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
-      <p style="margin:0;font-weight:600;color:#374151;">Phone</p>
-      <p style="margin:4px 0 0 0;color:#6b7280;font-size:14px;">${settings.contact_phone}</p>
+  if (isPhoneMeeting) {
+    // Phone Meeting Details block - suppress Zoom entirely
+    const clientPhone = booking.client_phone || '';
+    const adminPhone = effectiveAdminPhone || settings.contact_phone || '';
+    sections.push(`<div style="margin-top:20px;padding:16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
+      <p style="margin:0;font-weight:600;color:#374151;">Phone Meeting Details</p>
+      <p style="margin:8px 0 0 0;color:#6b7280;font-size:14px;">You will receive a call at the number you provided: ${clientPhone}.</p>
+      <p style="margin:4px 0 0 0;color:#6b7280;font-size:14px;">Expect a call from ${settings.business_name} at: ${adminPhone}.</p>
     </div>`);
+  } else {
+    // Prominent Zoom section
+    if (elements.zoom && booking.zoom_link) {
+      sections.push(`<div style="margin-top:20px;padding:16px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;">
+        <p style="margin:0;font-weight:600;color:#166534;">Zoom Meeting</p>
+        <p style="margin:8px 0 0 0;"><a href="${booking.zoom_link}" style="color:#15803d;word-break:break-all;">${booking.zoom_link}</a></p>
+        ${booking.zoom_passcode ? `<p style="margin:4px 0 0 0;color:#166534;">Passcode: ${booking.zoom_passcode}</p>` : ""}
+      </div>`);
+    }
+
+    // Prominent phone section (separate from company info)
+    if (elements.phone && settings.contact_phone) {
+      sections.push(`<div style="margin-top:12px;padding:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
+        <p style="margin:0;font-weight:600;color:#374151;">Phone</p>
+        <p style="margin:4px 0 0 0;color:#6b7280;font-size:14px;">${settings.contact_phone}</p>
+      </div>`);
+    }
   }
 
   // Google Calendar link
@@ -378,24 +393,36 @@ function buildEmailHtml(textBody: string, elements: EmailElements, booking: Book
   return `<div style="max-width:600px;margin:0 auto;padding:24px;">${sections.join("")}</div>`;
 }
 
-function buildRecurringEmailHtml(textBody: string, elements: EmailElements, firstBooking: Booking, settings: AdminSettings, publicSiteUrl: string): string {
+function buildRecurringEmailHtml(textBody: string, elements: EmailElements, firstBooking: Booking, settings: AdminSettings, publicSiteUrl: string, effectiveAdminPhone?: string): string {
   const sections: string[] = [];
 
   sections.push(`<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#1f2937;white-space:pre-wrap;">${textBody.replace(/</g, "&lt;").replace(/\n/g, "<br>")}</div>`);
 
-  if (elements.zoom && firstBooking.zoom_link) {
-    sections.push(`<div style="margin-top:20px;padding:16px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;">
-      <p style="margin:0;font-weight:600;color:#166534;">Zoom Meeting</p>
-      <p style="margin:8px 0 0 0;"><a href="${firstBooking.zoom_link}" style="color:#15803d;word-break:break-all;">${firstBooking.zoom_link}</a></p>
-      ${firstBooking.zoom_passcode ? `<p style="margin:4px 0 0 0;color:#166534;">Passcode: ${firstBooking.zoom_passcode}</p>` : ""}
-    </div>`);
-  }
+  const isPhoneMeeting = firstBooking.meeting_location_type === 'phone';
 
-  if (elements.phone && settings.contact_phone) {
-    sections.push(`<div style="margin-top:12px;padding:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
-      <p style="margin:0;font-weight:600;color:#374151;">Phone</p>
-      <p style="margin:4px 0 0 0;color:#6b7280;font-size:14px;">${settings.contact_phone}</p>
+  if (isPhoneMeeting) {
+    const clientPhone = firstBooking.client_phone || '';
+    const adminPhone = effectiveAdminPhone || settings.contact_phone || '';
+    sections.push(`<div style="margin-top:20px;padding:16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
+      <p style="margin:0;font-weight:600;color:#374151;">Phone Meeting Details</p>
+      <p style="margin:8px 0 0 0;color:#6b7280;font-size:14px;">You will receive a call at the number you provided: ${clientPhone}.</p>
+      <p style="margin:4px 0 0 0;color:#6b7280;font-size:14px;">Expect a call from ${settings.business_name} at: ${adminPhone}.</p>
     </div>`);
+  } else {
+    if (elements.zoom && firstBooking.zoom_link) {
+      sections.push(`<div style="margin-top:20px;padding:16px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;">
+        <p style="margin:0;font-weight:600;color:#166534;">Zoom Meeting</p>
+        <p style="margin:8px 0 0 0;"><a href="${firstBooking.zoom_link}" style="color:#15803d;word-break:break-all;">${firstBooking.zoom_link}</a></p>
+        ${firstBooking.zoom_passcode ? `<p style="margin:4px 0 0 0;color:#166534;">Passcode: ${firstBooking.zoom_passcode}</p>` : ""}
+      </div>`);
+    }
+
+    if (elements.phone && settings.contact_phone) {
+      sections.push(`<div style="margin-top:12px;padding:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
+        <p style="margin:0;font-weight:600;color:#374151;">Phone</p>
+        <p style="margin:4px 0 0 0;color:#6b7280;font-size:14px;">${settings.contact_phone}</p>
+      </div>`);
+    }
   }
 
   if (elements.google_calendar && firstBooking.date && firstBooking.start_time) {
@@ -487,7 +514,7 @@ async function sendImmediateReminderIfNeeded(
     notes_to_client: booking.notes_to_client || "",
   });
 
-  const html = buildEmailHtml(textBody, elements, booking, settings, effectiveSiteUrl);
+  const html = buildEmailHtml(textBody, elements, booking, settings, effectiveSiteUrl, effectiveAdminPhone || undefined);
   const subject = `${TEST_SUBJECT_PREFIX}Reminder: Your meeting with ${settings.business_name}`;
 
   const sent = await sendEmail(resendApiKey, fromName, fromEmail, booking.client_email, subject, html);
@@ -621,6 +648,7 @@ Deno.serve(async (req: Request) => {
         zoom_passcode: "test123", booking_token: "dummy-token-test",
         meeting_type_id: null, recurrence_group_id: null,
         internal_notes: null, notes_to_client: "This is a test note to the client.", source: null,
+        meeting_location_type: "zoom",
       };
 
       const templateMap: Record<string, string | null> = {
@@ -721,6 +749,7 @@ Deno.serve(async (req: Request) => {
         duration_minutes: 0, status: "confirmed", zoom_link: null,
         zoom_passcode: null, booking_token: null, meeting_type_id: null,
         recurrence_group_id: null, internal_notes: null, notes_to_client: null, source: null,
+        meeting_location_type: null,
       };
 
       const html = buildEmailHtml(textBody, elements, dummyBooking, settings, effectiveSiteUrl);
@@ -770,13 +799,14 @@ Deno.serve(async (req: Request) => {
       if (firstBooking.meeting_type_id) {
         const { data: mt } = await supabase
           .from("meeting_types")
-          .select("id, name, zoom_link")
+          .select("id, name, zoom_link, contact_phone_override")
           .eq("id", firstBooking.meeting_type_id)
           .maybeSingle() as { data: MeetingType | null };
         meetingType = mt;
       }
 
       const effectiveZoomLink = firstBooking.zoom_link || meetingType?.zoom_link || settings.zoom_default_link || null;
+      const effectiveAdminPhone = meetingType?.contact_phone_override || settings.contact_phone || null;
       const bookingWithZoom = { ...firstBooking, zoom_link: effectiveZoomLink };
 
       const clientName = `${firstBooking.first_name} ${firstBooking.last_name}`;
@@ -803,7 +833,7 @@ Deno.serve(async (req: Request) => {
         notes_to_client: firstBooking.notes_to_client || "",
       });
 
-      const html = buildRecurringEmailHtml(textBody, elements, bookingWithZoom, settings, effectiveSiteUrl);
+      const html = buildRecurringEmailHtml(textBody, elements, bookingWithZoom, settings, effectiveSiteUrl, effectiveAdminPhone || undefined);
       const subject = `${TEST_SUBJECT_PREFIX}Your Recurring Meeting Series with ${settings.business_name}`;
 
       const sent = await sendEmail(resendApiKey, fromName, fromEmail, firstBooking.client_email, subject, html);
@@ -972,7 +1002,7 @@ Deno.serve(async (req: Request) => {
     if (booking.meeting_type_id) {
       const { data: mt } = await supabase
         .from("meeting_types")
-        .select("id, name, zoom_link")
+        .select("id, name, zoom_link, contact_phone_override")
         .eq("id", booking.meeting_type_id)
         .maybeSingle() as { data: MeetingType | null };
       meetingType = mt;
@@ -980,6 +1010,7 @@ Deno.serve(async (req: Request) => {
 
     // Determine effective zoom link: booking > meeting type > settings default
     const effectiveZoomLink = booking.zoom_link || meetingType?.zoom_link || settings.zoom_default_link || null;
+    const effectiveAdminPhone = meetingType?.contact_phone_override || settings.contact_phone || null;
     const bookingWithZoom = { ...booking, zoom_link: effectiveZoomLink };
 
     const clientName = `${booking.first_name} ${booking.last_name}`;
@@ -1017,7 +1048,7 @@ Deno.serve(async (req: Request) => {
         notes_to_client: booking.notes_to_client || "",
       });
 
-      const html = buildEmailHtml(textBody, elements, bookingWithZoom, settings, effectiveSiteUrl);
+      const html = buildEmailHtml(textBody, elements, bookingWithZoom, settings, effectiveSiteUrl, effectiveAdminPhone || undefined);
       const subject = `${TEST_SUBJECT_PREFIX}Reminder: Your meeting with ${settings.business_name}`;
 
       const sent = await sendEmail(resendApiKey, fromName, fromEmail, booking.client_email, subject, html);
@@ -1065,7 +1096,7 @@ Deno.serve(async (req: Request) => {
           notes_to_client: booking.notes_to_client || "",
         });
 
-        const html = buildRecurringEmailHtml(textBody, elements, bookingWithZoom, settings, effectiveSiteUrl);
+        const html = buildRecurringEmailHtml(textBody, elements, bookingWithZoom, settings, effectiveSiteUrl, effectiveAdminPhone || undefined);
         const subject = `${TEST_SUBJECT_PREFIX}Your Recurring Meeting Series with ${settings.business_name}`;
 
         const sent = await sendEmail(resendApiKey, fromName, fromEmail, booking.client_email, subject, html);
@@ -1149,7 +1180,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const textBody = fillTemplate(template, templateVars);
-    const html = buildEmailHtml(textBody, elements, bookingWithZoom, settings, effectiveSiteUrl);
+    const html = buildEmailHtml(textBody, elements, bookingWithZoom, settings, effectiveSiteUrl, effectiveAdminPhone || undefined);
 
     const sent = await sendEmail(resendApiKey, fromName, fromEmail, booking.client_email, subject, html);
 

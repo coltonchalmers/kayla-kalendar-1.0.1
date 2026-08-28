@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { XCircle, CalendarClock, CheckCircle, Repeat, Clock, AlertTriangle, Edit3, Save, Bell, Lock, Mail, User, Send, ChevronDown, ChevronUp, Check, X, AlertCircle, UserPlus, UserCheck, Plus, Trash2 } from 'lucide-react';
+import { Circle as XCircle, CalendarClock, CircleCheck as CheckCircle, Repeat, Clock, TriangleAlert as AlertTriangle, CreditCard as Edit3, Save, Bell, Lock, Mail, User, Send, ChevronDown, ChevronUp, Check, X, CircleAlert as AlertCircle, UserPlus, UserCheck, Plus, Trash2, Phone, Video } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
@@ -19,7 +19,7 @@ import { useAvailability } from '@/hooks/useAvailability';
 import { triggerResendEmail, triggerDummyEmail, triggerRescheduleProposalEmail, type EmailResult } from '@/lib/bookingEmails';
 import { parseError } from '@/lib/errors';
 import { useRescheduleProposals } from '@/hooks/useRescheduleProposals';
-import type { Booking, BookingChange, MeetingType } from '@/lib/types';
+import type { Booking, BookingChange, MeetingType, MeetingLocationType } from '@/lib/types';
 
 interface Props {
   booking: Booking | null;
@@ -67,6 +67,7 @@ export default function BookingDetailsModal({ booking, open, onClose }: Props) {
   const [editEmail, setEditEmail] = useState('');
   const [editPhone, setEditPhone] = useState('');
   const [editZoomLink, setEditZoomLink] = useState('');
+  const [editMeetingLocation, setEditMeetingLocation] = useState<MeetingLocationType>('zoom');
   const [notifyClient, setNotifyClient] = useState(false);
   const [conflictError, setConflictError] = useState<string | null>(null);
   const [bufferWarning, setBufferWarning] = useState<string | null>(null);
@@ -141,6 +142,7 @@ export default function BookingDetailsModal({ booking, open, onClose }: Props) {
     setEditEmail(booking.client_email);
     setEditPhone(booking.client_phone || '');
     setEditZoomLink(booking.zoom_link || '');
+    setEditMeetingLocation(booking.meeting_location_type || 'zoom');
     setEditInternalNotes(booking.internal_notes || '');
     setEditNotesToClient(booking.notes_to_client || '');
     setNotifyClient(false);
@@ -260,6 +262,7 @@ export default function BookingDetailsModal({ booking, open, onClose }: Props) {
         zoom_link: editZoomLink || null,
         internal_notes: editInternalNotes || null,
         notes_to_client: editNotesToClient || null,
+        meeting_location_type: editMeetingLocation,
       }, notifyClient);
       await refreshAndClose();
     } catch (err) {
@@ -522,6 +525,9 @@ export default function BookingDetailsModal({ booking, open, onClose }: Props) {
   );
   const lastChange = changes[0];
 
+  const effectiveZoomLink = booking.zoom_link || meetingTypeMap[booking.meeting_type_id || '']?.zoom_link || settings?.zoom_default_link || null;
+  const effectiveAdminPhone = meetingTypeMap[booking.meeting_type_id || '']?.contact_phone_override || settings?.contact_phone || null;
+
   const sourceLabel = booking.source === 'recurring_link' ? 'Recurring Link'
     : booking.source === 'proposal_link' ? 'Proposal'
     : booking.source === 'admin' ? 'Manual'
@@ -576,6 +582,16 @@ export default function BookingDetailsModal({ booking, open, onClose }: Props) {
                 </p>
               </div>
               <div>
+                <p className="text-xs text-gray-500 uppercase tracking-wider">Meeting Location</p>
+                <p className="text-sm text-gray-900 flex items-center gap-1.5">
+                  {booking.meeting_location_type === 'phone' ? (
+                    <><Phone className="w-3.5 h-3.5 text-gray-500" /> Phone Call</>
+                  ) : (
+                    <><Video className="w-3.5 h-3.5 text-gray-500" /> Zoom Meeting</>
+                  )}
+                </p>
+              </div>
+              <div>
                 <p className="text-xs text-gray-500 uppercase tracking-wider">Status</p>
                 <StatusBadge status={booking.status} />
               </div>
@@ -599,15 +615,24 @@ export default function BookingDetailsModal({ booking, open, onClose }: Props) {
                   <p className="text-sm text-gray-900">{booking.client_phone}</p>
                 </div>
               )}
-              {booking.zoom_link && (
+              {booking.meeting_location_type !== 'phone' && effectiveZoomLink && (
                 <div className="col-span-2">
                   <p className="text-xs text-gray-500 uppercase tracking-wider">Zoom Link</p>
-                  <a href={booking.zoom_link} target="_blank" rel="noopener noreferrer" className="text-sm text-green-700 underline break-all">
-                    {booking.zoom_link}
+                  <a href={effectiveZoomLink} target="_blank" rel="noopener noreferrer" className="text-sm text-green-700 underline break-all">
+                    {effectiveZoomLink}
                   </a>
                   {booking.zoom_passcode && (
                     <p className="text-xs text-gray-500 mt-0.5">Passcode: {booking.zoom_passcode}</p>
                   )}
+                </div>
+              )}
+              {booking.meeting_location_type === 'phone' && (
+                <div className="col-span-2">
+                  <p className="text-xs text-gray-500 uppercase tracking-wider">Phone Meeting</p>
+                  <p className="text-sm text-gray-900">
+                    Call to: {booking.client_phone || '---'}
+                    {effectiveAdminPhone && <> | From: {effectiveAdminPhone}</>}
+                  </p>
                 </div>
               )}
             </div>
@@ -846,6 +871,15 @@ export default function BookingDetailsModal({ booking, open, onClose }: Props) {
             <Input label="Client Email" type="email" value={editEmail} onChange={e => setEditEmail(e.target.value)} />
             <Input label="Client Phone" type="tel" value={editPhone} onChange={e => setEditPhone(e.target.value)} />
             <Input label="Zoom Link" value={editZoomLink} onChange={e => setEditZoomLink(e.target.value)} placeholder="https://zoom.us/j/..." />
+            <Select
+              label="Meeting Location"
+              value={editMeetingLocation}
+              onChange={e => setEditMeetingLocation(e.target.value as MeetingLocationType)}
+              options={[
+                { value: 'zoom', label: 'Zoom Meeting' },
+                { value: 'phone', label: 'Phone Call' },
+              ]}
+            />
 
             <div className="space-y-3 pt-2 border-t">
               <Card padding="sm" className="bg-amber-50 border-amber-200">

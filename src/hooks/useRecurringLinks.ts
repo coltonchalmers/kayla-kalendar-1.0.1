@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import type { RecurringLink, TimeRestriction } from '@/lib/types';
+import type { RecurringLink, TimeRestriction, MeetingLocationType } from '@/lib/types';
 
 export function useRecurringLinks() {
   const [links, setLinks] = useState<RecurringLink[]>([]);
@@ -38,6 +38,7 @@ export function useRecurringLinks() {
     notes_to_client?: string | null;
     internal_notes?: string | null;
     expires_at?: string | null;
+    meeting_location_type?: MeetingLocationType | null;
   }) => {
     const { data, error } = await supabase
       .from('recurring_links')
@@ -79,6 +80,7 @@ export function useRecurringLinks() {
     notes_to_client?: string | null;
     internal_notes?: string | null;
     expires_at?: string | null;
+    meeting_location_type?: MeetingLocationType | null;
   }) => {
     const { data, error } = await supabase
       .from('recurring_links')

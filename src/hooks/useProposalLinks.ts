@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import type { ProposalLink, ProposalSlot } from '@/lib/types';
+import type { ProposalLink, ProposalSlot, MeetingLocationType } from '@/lib/types';
 
 export interface ProposalLinkWithSlots extends ProposalLink {
   slots: ProposalSlot[];
@@ -40,6 +40,7 @@ export function useProposalLinks() {
     internal_notes?: string | null;
     notes_to_client?: string | null;
     allow_full_availability?: boolean;
+    meeting_location_type?: MeetingLocationType | null;
     slots: { date: string; start_time: string }[];
   }) => {
     const { slots, ...linkData } = input;
@@ -105,6 +106,7 @@ export function useProposalLinks() {
     internal_notes?: string | null;
     notes_to_client?: string | null;
     allow_full_availability?: boolean;
+    meeting_location_type?: MeetingLocationType | null;
   }) => {
     const { data, error } = await supabase
       .from('proposal_links')

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import type { Booking, BookingChange } from '@/lib/types';
+import type { Booking, BookingChange, MeetingLocationType } from '@/lib/types';
 import { minutesToTime, timeToMinutes } from '@/lib/utils';
 import { triggerBookingEmails, triggerAdminChangeNotification } from '@/lib/bookingEmails';
 
@@ -24,6 +24,7 @@ interface BookingInput {
   meeting_type_id?: string;
   proposal_link_id?: string;
   user_id?: string;
+  meeting_location_type?: MeetingLocationType;
 }
 
 export interface ConflictResult {
@@ -123,6 +124,7 @@ export function useBookings(options?: { autoFetch?: boolean; userId?: string }) 
         proposal_link_id: input.proposal_link_id || null,
         booking_token: bookingToken,
         user_id: input.user_id || undefined,
+        meeting_location_type: input.meeting_location_type || 'zoom',
       })
       .select()
       .single();
@@ -431,6 +433,7 @@ export function useBookings(options?: { autoFetch?: boolean; userId?: string }) 
       client_phone?: string | null;
       internal_notes?: string | null;
       notes_to_client?: string | null;
+      meeting_location_type?: MeetingLocationType;
     },
     sendEmail: boolean = false
   ) => {

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
-import { ArrowLeft, AlertCircle, Clock, CalendarClock } from 'lucide-react';
+import { ArrowLeft, CircleAlert as AlertCircle, Clock, CalendarClock } from 'lucide-react';
 import CalendarGrid from '@/components/calendar/CalendarGrid';
 import TimeSlotPicker from '@/components/calendar/TimeSlotPicker';
 import IntakeForm from '@/components/booking/IntakeForm';
@@ -115,6 +115,7 @@ export default function MeetingTypeBookingPage() {
         source: 'public',
         client_timezone: clientTimezone,
         meeting_type_id: meetingType.id,
+        meeting_location_type: formData.meetingLocation,
         user_id: meetingType.user_id,
       });
       setConfirmedBooking(booking);
@@ -242,6 +243,7 @@ export default function MeetingTypeBookingPage() {
             durationMinutes={durationMinutes}
             onSubmit={handleSubmit}
             loading={submitting}
+            forcedLocation={meetingType.meeting_location_type}
           />
         )}
 

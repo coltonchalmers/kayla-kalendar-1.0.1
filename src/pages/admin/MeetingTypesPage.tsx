@@ -1,15 +1,16 @@
 import { useState } from 'react';
-import { CalendarClock, Plus, Copy, Check, Trash2, ToggleLeft, ToggleRight, Pencil, ChevronDown, AlertTriangle } from 'lucide-react';
+import { CalendarClock, Plus, Copy, Check, Trash2, ToggleLeft, ToggleRight, Pencil, ChevronDown, TriangleAlert as AlertTriangle } from 'lucide-react';
 import { useMeetingTypes } from '@/hooks/useMeetingTypes';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Textarea from '@/components/ui/Textarea';
+import Select from '@/components/ui/Select';
 import Modal from '@/components/ui/Modal';
 import Badge from '@/components/ui/Badge';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { classNames } from '@/lib/utils';
-import type { MeetingType } from '@/lib/types';
+import type { MeetingType, MeetingLocationType } from '@/lib/types';
 
 export default function MeetingTypesPage() {
   const { meetingTypes, loading, createMeetingType, updateMeetingType, deleteMeetingType } = useMeetingTypes();
@@ -22,7 +23,7 @@ export default function MeetingTypesPage() {
   const [isActive, setIsActive] = useState(true);
 
   const [zoomLink, setZoomLink] = useState('');
-  const [meetingLocationType, setMeetingLocationType] = useState('');
+  const [meetingLocationType, setMeetingLocationType] = useState<MeetingLocationType | ''>('');
   const [contactEmailOverride, setContactEmailOverride] = useState('');
   const [contactPhoneOverride, setContactPhoneOverride] = useState('');
   const [saving, setSaving] = useState(false);
@@ -68,7 +69,7 @@ export default function MeetingTypesPage() {
         name: name.trim(),
         description: description.trim() || null,
         duration_minutes: parseInt(duration) || 30,
-        meeting_location_type: meetingLocationType || null,
+        meeting_location_type: (meetingLocationType || null) as MeetingLocationType | null,
         is_active: isActive,
         zoom_link: zoomLink.trim() || null,
         contact_email_override: contactEmailOverride.trim() || null,
@@ -221,7 +222,7 @@ export default function MeetingTypesPage() {
           <Select
             label="Meeting Location"
             value={meetingLocationType}
-            onChange={e => setMeetingLocationType(e.target.value)}
+            onChange={e => setMeetingLocationType(e.target.value as MeetingLocationType | '')}
             options={[
               { value: '', label: 'Let Client Choose' },
               { value: 'zoom', label: 'Zoom' },

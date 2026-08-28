@@ -87,6 +87,8 @@ export interface AvailabilityOverride {
   created_at: string;
 }
 
+export type MeetingLocationType = 'zoom' | 'phone';
+
 export interface MeetingType {
   id: string;
   user_id: string;
@@ -98,6 +100,7 @@ export interface MeetingType {
   zoom_link: string | null;
   contact_email_override: string | null;
   contact_phone_override: string | null;
+  meeting_location_type: MeetingLocationType | null;
   created_at: string;
 }
 
@@ -125,7 +128,9 @@ export interface Booking {
   meeting_type_id: string | null;
   proposal_link_id: string | null;
   zoom_link: string | null;
+  zoom_passcode: string | null;
   booking_token: string | null;
+  meeting_location_type: MeetingLocationType;
   created_at: string;
   updated_at: string;
 }
@@ -144,6 +149,7 @@ export interface ProposalLink {
   internal_notes: string | null;
   notes_to_client: string | null;
   allow_full_availability: boolean;
+  meeting_location_type: MeetingLocationType | null;
   created_at: string;
 }
 
@@ -184,6 +190,7 @@ export interface RecurringLink {
   internal_notes: string | null;
   expires_at: string | null;
   is_used: boolean;
+  meeting_location_type: MeetingLocationType | null;
   created_at: string;
 }
 
