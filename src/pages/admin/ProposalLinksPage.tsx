@@ -155,6 +155,7 @@ export default function ProposalLinksPage() {
         client_email: clientEmail.trim(),
         label: label.trim() || undefined,
         meeting_type_id: meetingTypeId || null,
+        meeting_location_type: meetingLocationType || null,
         expires_at: expiresAt ? new Date(expiresAt + 'T23:59:59').toISOString() : null,
         internal_notes: internalNotes.trim() || null,
         notes_to_client: notesToClient.trim() || null,
