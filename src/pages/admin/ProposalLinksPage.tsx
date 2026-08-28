@@ -213,6 +213,7 @@ export default function ProposalLinksPage() {
     setEditEmail(proposal.client_email);
     setEditLabel(proposal.label || '');
     setEditMeetingTypeId(proposal.meeting_type_id || '');
+    setMeetingLocationType(mt.meeting_location_type || '');
     setEditExpiresAt(proposal.expires_at ? new Date(proposal.expires_at).toISOString().slice(0, 10) : '');
     setEditNotesToClient(proposal.notes_to_client || '');
     setEditInternalNotes(proposal.internal_notes || '');
