@@ -534,7 +534,7 @@ export default function RecurringLinksPage() {
               { value: 'zoom', label: 'Zoom' },
               { value: 'phone', label: 'Phone' },
             ]}
-            hint="Force a location or let the client decide when they book."
+            hint="Choose a location or let the client decide when they book."
             />
 
 
