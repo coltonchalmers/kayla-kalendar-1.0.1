@@ -123,7 +123,6 @@ export function useBookings(options?: { autoFetch?: boolean; userId?: string }) 
         meeting_type_id: input.meeting_type_id || null,
         proposal_link_id: input.proposal_link_id || null,
         booking_token: bookingToken,
-        zoom_passcode_random: input.zoom_passcode_random ?? false,
         user_id: input.user_id || undefined,
       })
       .select()
