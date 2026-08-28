@@ -254,6 +254,17 @@ export default function ManualBookingPage() {
                 ...meetingTypes.map(mt => ({ value: mt.id, label: `${mt.name} (${mt.duration_minutes} min)` })),
               ]}
             />
+            <Select
+              label="Meeting Location"
+              value={meetingLocationType}
+              onChange={e => setMeetingLocationType(e.target.value)}
+              options={[
+                { value: 'zoom', label: 'Zoom' },
+                { value: 'phone', label: 'Phone' },
+              ]}
+              required
+              />
+
             <div className="grid grid-cols-2 gap-4">
               <Input label="First Name" required value={firstName} onChange={e => setFirstName(e.target.value)} />
               <Input label="Last Name" required value={lastName} onChange={e => setLastName(e.target.value)} />
