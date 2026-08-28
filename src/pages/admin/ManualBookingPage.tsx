@@ -22,6 +22,7 @@ export default function ManualBookingPage() {
   const { createBooking, fetchBookingsForDate } = useBookings({ autoFetch: false });
   const { settings, loading: settingsLoading } = useSettings();
   const { meetingTypes, loading: mtLoading } = useMeetingTypes();
+  const [meetingLocationType, setMeetingLocationType] = useState('zoom');
 
   const now = new Date();
   const [viewYear, setViewYear] = useState(now.getFullYear());
