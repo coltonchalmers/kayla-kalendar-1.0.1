@@ -430,7 +430,6 @@ export function useBookings(options?: { autoFetch?: boolean; userId?: string }) 
       zoom_link?: string | null;
       client_email?: string;
       client_phone?: string | null;
-      zoom_passcode_random?: boolean;
       internal_notes?: string | null;
       notes_to_client?: string | null;
     },
