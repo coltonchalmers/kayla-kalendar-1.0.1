@@ -813,17 +813,8 @@ export default function SettingsPage() {
                 hint="Your personal Zoom link, used for all meetings unless a meeting type or individual booking has its own link."
               />
             </div>
-            <div className="mt-4">
-              <Input
-                label="Default Zoom Passcode"
-                value={zoomDefaultPasscode}
-                onChange={e => setZoomDefaultPasscode(e.target.value)}
-                placeholder="e.g., 123456"
-                hint="Used for auto-created Zoom meetings unless 'randomly generate' is checked on a specific booking. Has no effect when using a default or manual Zoom link. Leave blank to let Zoom auto-generate."
-              />
-            </div>
             <p className="text-xs text-gray-400 mt-3">
-              Meeting types with a manual Zoom link override will use that link instead of the default. If no link is set at any level and auto-creation is on, a new Zoom meeting is created per booking (requires Zoom Server-to-Server OAuth credentials).
+              Bookings or meeting types with a manual Zoom link override will use that link instead of the default. If no link is set at any level and auto-creation is on, a new Zoom meeting is created per booking (requires Zoom Server-to-Server OAuth credentials).
             </p>
           </Card>
 
