@@ -44,7 +44,6 @@ export default function ManualBookingPage() {
   const [internalNotes, setInternalNotes] = useState('');
   const [notesToClient, setNotesToClient] = useState('');
   const [meetingTypeId, setMeetingTypeId] = useState('');
-  const [zoomPasscodeRandom, setZoomPasscodeRandom] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [conflictWarning, setConflictWarning] = useState<string | null>(null);
   const [overrideConflict, setOverrideConflict] = useState(false);
