@@ -212,7 +212,6 @@ export default function SettingsPage() {
   const [emailFromName, setEmailFromName] = useState('');
   const [emailFromAddress, setEmailFromAddress] = useState('');
   const [zoomEnabled, setZoomEnabled] = useState(false);
-  const [zoomDefaultPasscode, setZoomDefaultPasscode] = useState('');
   const [zoomDefaultLink, setZoomDefaultLink] = useState('');
   const [siteUrl, setSiteUrl] = useState('');
   const [timezone, setTimezone] = useState('America/New_York');
@@ -285,7 +284,6 @@ export default function SettingsPage() {
       setEmailFromName(settings.email_from_name || settings.business_name);
       setEmailFromAddress(settings.email_from_address || 'lindsey@jungosolutions.com');
       setZoomEnabled(settings.zoom_enabled ?? false);
-      setZoomDefaultPasscode(settings.zoom_default_passcode || '');
       setZoomDefaultLink(settings.zoom_default_link || '');
       setSiteUrl(settings.site_url || '');
       setTimezone(settings.timezone || 'America/New_York');
