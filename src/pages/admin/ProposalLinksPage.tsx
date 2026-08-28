@@ -67,6 +67,7 @@ export default function ProposalLinksPage() {
   const [editEmail, setEditEmail] = useState('');
   const [editLabel, setEditLabel] = useState('');
   const [editMeetingTypeId, setEditMeetingTypeId] = useState('');
+  const [editMeetingLocationType, setEditMeetingLocationType] = useState('');
   const [editExpiresAt, setEditExpiresAt] = useState('');
   const [editNotesToClient, setEditNotesToClient] = useState('');
   const [editInternalNotes, setEditInternalNotes] = useState('');
