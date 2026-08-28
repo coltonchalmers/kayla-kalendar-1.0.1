@@ -48,7 +48,6 @@ export interface AdminSettings {
   zoom_default_passcode: string | null;
   zoom_default_link: string | null;
   site_url: string | null;
-  timezone: string;
   email_cancellation_enabled: boolean;
   email_cancellation_template: string | null;
   email_cancellation_elements: EmailElements | null;

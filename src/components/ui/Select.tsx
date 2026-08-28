@@ -4,11 +4,12 @@ import { classNames } from '@/lib/utils';
 interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;
   error?: string;
+  hint?: string;
   options: { value: string; label: string }[];
 }
 
 const Select = forwardRef<HTMLSelectElement, SelectProps>(
-  ({ label, error, options, className, id, ...props }, ref) => {
+  ({ label, error, hint, options, className, id, ...props }, ref) => {
     const selectId = id || label?.toLowerCase().replace(/\s+/g, '-');
 
     return (
@@ -37,6 +38,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
           ))}
         </select>
         {error && <p className="text-sm text-red-600">{error}</p>}
+        {hint && !error && <p className="text-sm text-gray-500">{hint}</p>}
       </div>
     );
   }
