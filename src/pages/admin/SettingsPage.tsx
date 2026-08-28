@@ -353,7 +353,6 @@ export default function SettingsPage() {
         email_from_name: emailFromName,
         email_from_address: emailFromAddress.trim(),
         zoom_enabled: zoomEnabled,
-        zoom_default_passcode: zoomDefaultPasscode || null,
         zoom_default_link: zoomDefaultLink.trim() || null,
         site_url: siteUrl.trim() || null,
         timezone,
