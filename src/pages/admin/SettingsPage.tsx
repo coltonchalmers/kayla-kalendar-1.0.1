@@ -810,7 +810,7 @@ export default function SettingsPage() {
                 value={zoomDefaultLink}
                 onChange={e => setZoomDefaultLink(e.target.value)}
                 placeholder="https://zoom.us/j/12345678901"
-                hint="Your personal Zoom link, used for all meetings unless a meeting type or individual booking has its own link. Leave blank to auto-create a new meeting per booking instead."
+                hint="Your personal Zoom link, used for all meetings unless a meeting type or individual booking has its own link."
               />
             </div>
             <div className="mt-4">
