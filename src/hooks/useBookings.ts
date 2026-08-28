@@ -23,7 +23,6 @@ interface BookingInput {
   client_timezone?: string;
   meeting_type_id?: string;
   proposal_link_id?: string;
-  zoom_passcode_random?: boolean;
   user_id?: string;
 }
 
