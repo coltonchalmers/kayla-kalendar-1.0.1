@@ -292,6 +292,7 @@ export default function RecurringLinksPage() {
         allow_client_frequency: editAllowFrequency,
         allow_client_end_date: editAllowEndDate,
         meeting_type_id: editMeetingTypeId || null,
+        meeting_location_type: editMeetingLocationType || null,
         is_ongoing: editIsOngoing,
         scheduling_mode: 'flexible',
         time_restrictions: editRuleDrafts.length > 0 ? editRuleDrafts : null,
