@@ -45,7 +45,6 @@ export interface AdminSettings {
   admin_reminder_mode: 'individual' | 'daily';
   admin_daily_summary_time: string;
   admin_daily_summary_night_before: boolean;
-  zoom_default_passcode: string | null;
   zoom_default_link: string | null;
   site_url: string | null;
   email_cancellation_enabled: boolean;
@@ -127,7 +126,6 @@ export interface Booking {
   proposal_link_id: string | null;
   zoom_link: string | null;
   booking_token: string | null;
-  zoom_passcode: string | null;
   created_at: string;
   updated_at: string;
 }
