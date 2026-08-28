@@ -814,7 +814,7 @@ export default function SettingsPage() {
               />
             </div>
             <p className="text-xs text-gray-400 mt-3">
-              Bookings or meeting types with a manual Zoom link override will use that link instead of the default. If no link is set at any level and auto-creation is on, a new Zoom meeting is created per booking (requires Zoom Server-to-Server OAuth credentials).
+              Bookings or meeting types with a manual Zoom link override will use that link instead of the default.
             </p>
           </Card>
 
