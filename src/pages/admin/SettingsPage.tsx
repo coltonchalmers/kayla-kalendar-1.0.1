@@ -239,7 +239,7 @@ export default function SettingsPage() {
       setAdminDailySummaryTime(settings.admin_daily_summary_time || '07:00');
       setAdminDailySummaryNightBefore(settings.admin_daily_summary_night_before ?? false);
 
-      setEmailInviteEnabled(settings.email_invite_enabled ?? true);
+setEmailInviteEnabled(settings.email_invite_enabled ?? true);
       setEmailConfirmationEnabled(settings.email_confirmation_enabled ?? true);
       setEmailNotificationEnabled(settings.email_notification_enabled ?? true);
       setEmailAnnouncementEnabled(settings.email_announcement_enabled ?? true);
