@@ -159,6 +159,7 @@ export default function RecurringLinksPage() {
     setClientEmail('');
     setLabel('');
     setMeetingTypeId('');
+    setMeetingLocationType('');
     setFrequency('');
     setOccurrences('');
     setEndDate('');
