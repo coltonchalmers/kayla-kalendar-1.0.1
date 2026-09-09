@@ -308,15 +308,33 @@ Deno.serve(async (req: Request) => {
           for (const booking of upcomingBookings) {
             const meetingStart = getMeetingInstantUTC(booking.date, booking.start_time, adminTz);
             if (meetingStart > reminderStart && meetingStart <= reminderCutoff) {
-              const { data: existingLog } = await supabase
+              const { data: reminderLog, error: reminderErr } = await supabase
                 .from("notification_log")
                 .select("id")
                 .eq("booking_id", booking.id)
                 .eq("type", "email")
-                .in("payload->>emailType", ["reminder", "reminder_immediate"])
+                .eq("payload->>emailType", "reminder")
                 .maybeSingle();
 
-              if (existingLog) continue;
+              if (reminderErr) {
+                console.error("Dedup check failed for reminder:", reminderErr.message);
+                continue;
+              }
+
+              const { data: immediateLog, error: immediateErr } = await supabase
+                .from("notification_log")
+                .select("id")
+                .eq("booking_id", booking.id)
+                .eq("type", "email")
+                .eq("payload->>emailType", "reminder_immediate")
+                .maybeSingle();
+
+              if (immediateErr) {
+                console.error("Dedup check failed for reminder_immediate:", immediateErr.message);
+                continue;
+              }
+
+              if (reminderLog || immediateLog) continue;
 
               const template = settings.email_notification_template || DEFAULT_REMINDER_TEMPLATE;
               const textBody = fillTemplate(template, {
@@ -379,12 +397,17 @@ Deno.serve(async (req: Request) => {
 
             if (todayBookings && todayBookings.length > 0) {
               const logKey = `daily_summary_${targetDate}_${settings.user_id}`;
-              const { data: existingLog } = await supabase
+              const { data: existingLog, error: dedupErr } = await supabase
                 .from("notification_log")
                 .select("id")
                 .eq("type", "email")
                 .eq("payload->>emailType", logKey)
                 .maybeSingle();
+
+              if (dedupErr) {
+                console.error("Dedup check failed for daily summary:", dedupErr.message);
+                continue;
+              }
 
               if (!existingLog) {
                 const summaryLines = todayBookings.map(b =>
@@ -431,12 +454,17 @@ Deno.serve(async (req: Request) => {
                 const meetingStart = getMeetingInstantUTC(booking.date, booking.start_time, adminTz);
                 if (meetingStart > reminderStart && meetingStart <= reminderCutoff) {
                   const logKey = `admin_reminder_${booking.id}`;
-                  const { data: existingLog } = await supabase
+                  const { data: existingLog, error: dedupErr } = await supabase
                     .from("notification_log")
                     .select("id")
                     .eq("type", "email")
                     .eq("payload->>emailType", logKey)
                     .maybeSingle();
+
+                  if (dedupErr) {
+                    console.error("Dedup check failed for admin reminder:", dedupErr.message);
+                    continue;
+                  }
 
                   if (existingLog) continue;
 
