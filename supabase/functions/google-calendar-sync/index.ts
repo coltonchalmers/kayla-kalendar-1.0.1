@@ -36,7 +36,7 @@ function getClientSecret(): string | null {
 }
 
 function getRedirectUri(): string {
-  const siteUrl = Deno.env.get("PUBLIC_SITE_URL") || "";
+  const siteUrl = Deno.env.get("PUBLIC_SITE_URL") || Deno.env.get("SITE_URL") || "";
   return `${siteUrl.replace(/\/$/, "")}/google-calendar/callback`;
 }
 
@@ -160,15 +160,25 @@ function buildEventBody(booking: Record<string, unknown>, settings: Record<strin
   const duration = booking.duration_minutes as number;
   const timezone = (settings.timezone as string) || "America/New_York";
 
-  // Build start/end as datetime with timezone
-  const [h, m] = startTime.split(":").map(Number);
-  const startDate = new Date(`${date}T00:00:00`);
-  startDate.setHours(h, m, 0, 0);
+  // Build naive datetime strings directly from the booking's date and time.
+  // Google's API interprets a dateTime without a UTC suffix as being in the
+  // timeZone field we provide, so we must NOT convert through Date objects
+  // (which would shift the time to UTC and produce the wrong wall-clock time).
+  const [startH, startM] = startTime.split(":").map(Number);
+  const totalMinutes = startH * 60 + startM + duration;
+  const endH = Math.floor(totalMinutes / 60) % 24;
+  const endM = totalMinutes % 60;
+  // Handle overnight wrap (end time past midnight)
+  let endDate = date;
+  if (totalMinutes >= 24 * 60) {
+    const [y, mo, d] = date.split("-").map(Number);
+    const jsDate = new Date(y, mo - 1, d);
+    jsDate.setDate(jsDate.getDate() + Math.floor(totalMinutes / (24 * 60)));
+    endDate = `${jsDate.getFullYear()}-${String(jsDate.getMonth() + 1).padStart(2, "0")}-${String(jsDate.getDate()).padStart(2, "0")}`;
+  }
 
-  const endDate = new Date(startDate.getTime() + duration * 60000);
-
-  const startIso = startDate.toISOString().replace(/\.\d{3}Z$/, "");
-  const endIso = endDate.toISOString().replace(/\.\d{3}Z$/, "");
+  const startDateTime = `${date}T${startTime}:00`;
+  const endDateTime = `${endDate}T${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}:00`;
 
   const firstName = booking.first_name as string;
   const lastName = booking.last_name as string;
@@ -193,8 +203,8 @@ function buildEventBody(booking: Record<string, unknown>, settings: Record<strin
   return {
     summary: `${clientName} — ${businessName}`,
     description: descriptionParts.join("\n"),
-    start: { dateTime: `${startIso}`, timeZone: timezone },
-    end: { dateTime: `${endIso}`, timeZone: timezone },
+    start: { dateTime: startDateTime, timeZone: timezone },
+    end: { dateTime: endDateTime, timeZone: timezone },
     attendees: [{ email: clientEmail }],
   };
 }
