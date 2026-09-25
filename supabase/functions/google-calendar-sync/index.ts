@@ -165,6 +165,7 @@ function buildEventBody(booking: Record<string, unknown>, settings: Record<strin
   // timeZone field we provide, so we must NOT convert through Date objects
   // (which would shift the time to UTC and produce the wrong wall-clock time).
   const [startH, startM] = startTime.split(":").map(Number);
+  const startHHMM = `${String(startH).padStart(2, "0")}:${String(startM).padStart(2, "0")}`;
   const totalMinutes = startH * 60 + startM + duration;
   const endH = Math.floor(totalMinutes / 60) % 24;
   const endM = totalMinutes % 60;
@@ -177,7 +178,7 @@ function buildEventBody(booking: Record<string, unknown>, settings: Record<strin
     endDate = `${jsDate.getFullYear()}-${String(jsDate.getMonth() + 1).padStart(2, "0")}-${String(jsDate.getDate()).padStart(2, "0")}`;
   }
 
-  const startDateTime = `${date}T${startTime}:00`;
+  const startDateTime = `${date}T${startHHMM}:00`;
   const endDateTime = `${endDate}T${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}:00`;
 
   const firstName = booking.first_name as string;
