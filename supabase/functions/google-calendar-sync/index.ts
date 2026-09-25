@@ -36,7 +36,7 @@ function getClientSecret(): string | null {
 }
 
 function getRedirectUri(): string {
-  const siteUrl = Deno.env.get("PUBLIC_SITE_URL") || Deno.env.get("SITE_URL") || "";
+  const siteUrl = Deno.env.get("PUBLIC_SITE_URL") || Deno.env.get("PUBLIC_SITE_URL") || "";
   return `${siteUrl.replace(/\/$/, "")}/google-calendar/callback`;
 }
 
