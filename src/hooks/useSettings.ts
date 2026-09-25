@@ -125,6 +125,7 @@ export function useSettings(userId?: string) {
       zoom_default_link: null,
       site_url: null,
       timezone: 'America/New_York',
+      google_calendar_auto_sync: false,
     };
 
     const { data, error } = await supabase

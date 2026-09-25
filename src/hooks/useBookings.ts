@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import type { Booking, BookingChange, MeetingLocationType } from '@/lib/types';
 import { minutesToTime, timeToMinutes } from '@/lib/utils';
 import { triggerBookingEmails, triggerAdminChangeNotification } from '@/lib/bookingEmails';
+import { triggerGoogleCalendarSync } from '@/lib/googleCalendarSync';
 
 interface BookingInput {
   first_name: string;
@@ -131,6 +132,7 @@ export function useBookings(options?: { autoFetch?: boolean; userId?: string }) 
 
     if (error) throw error;
     setBookings(prev => [...prev, data]);
+    triggerGoogleCalendarSync(data.id);
     return data;
   }, []);
 
@@ -174,6 +176,8 @@ export function useBookings(options?: { autoFetch?: boolean; userId?: string }) 
     if (sendEmail) {
       await triggerBookingEmails(id, { emailType: 'cancellation' });
     }
+
+    triggerGoogleCalendarSync(id);
 
     // Notify admin that client cancelled
     await triggerAdminChangeNotification(id, 'cancelled').catch(() => {});
@@ -231,6 +235,8 @@ export function useBookings(options?: { autoFetch?: boolean; userId?: string }) 
       });
     }
 
+    triggerGoogleCalendarSync(id);
+
     // Notify admin that client rescheduled (only when initiated by client)
     if (sendEmail) {
       await triggerAdminChangeNotification(id, 'rescheduled', {
@@ -278,6 +284,10 @@ export function useBookings(options?: { autoFetch?: boolean; userId?: string }) 
         for (const id of cancelledIds) {
           await triggerBookingEmails(id, { emailType: 'cancellation' });
         }
+      }
+
+      for (const id of cancelledIds) {
+        triggerGoogleCalendarSync(id);
       }
     }
 
@@ -327,6 +337,8 @@ export function useBookings(options?: { autoFetch?: boolean; userId?: string }) 
           newTime: booking.start_time,
         });
       }
+
+      triggerGoogleCalendarSync(booking.id);
     }
 
     setBookings(prev => prev.map(b => {
@@ -422,6 +434,8 @@ export function useBookings(options?: { autoFetch?: boolean; userId?: string }) 
       await triggerBookingEmails(id, { emailType: 'change' });
     }
 
+    triggerGoogleCalendarSync(id);
+
     return { data, bufferWarning: conflictCheck.hasBufferOverlap };
   }, [bookings, checkMeetingTypeConflict]);
 
@@ -450,6 +464,8 @@ export function useBookings(options?: { autoFetch?: boolean; userId?: string }) 
     if (sendEmail) {
       await triggerBookingEmails(id, { emailType: 'change' });
     }
+
+    triggerGoogleCalendarSync(id);
 
     return data;
   }, []);

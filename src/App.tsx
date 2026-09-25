@@ -7,6 +7,7 @@ import RecurringBookingPage from '@/pages/public/RecurringBookingPage';
 import ProposalBookingPage from '@/pages/public/ProposalBookingPage';
 import ManageBookingPage from '@/pages/public/ManageBookingPage';
 import RescheduleProposalPage from '@/pages/public/RescheduleProposalPage';
+import GoogleCalendarCallbackPage from '@/pages/public/GoogleCalendarCallbackPage';
 import LoginPage from '@/pages/admin/LoginPage';
 import DashboardPage from '@/pages/admin/DashboardPage';
 import AvailabilityPage from '@/pages/admin/AvailabilityPage';
@@ -28,6 +29,7 @@ export default function App() {
         <Route path="/p/:token" element={<ProposalBookingPage />} />
         <Route path="/manage/:token" element={<ManageBookingPage />} />
         <Route path="/reschedule/:token" element={<RescheduleProposalPage />} />
+        <Route path="/google-calendar/callback" element={<GoogleCalendarCallbackPage />} />
       </Route>
 
       <Route path="/admin/login" element={<LoginPage />} />

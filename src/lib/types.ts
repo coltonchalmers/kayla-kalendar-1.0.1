@@ -47,6 +47,7 @@ export interface AdminSettings {
   admin_daily_summary_night_before: boolean;
   zoom_default_link: string | null;
   site_url: string | null;
+  google_calendar_auto_sync: boolean;
   email_cancellation_enabled: boolean;
   email_cancellation_template: string | null;
   email_cancellation_elements: EmailElements | null;
@@ -131,8 +132,20 @@ export interface Booking {
   zoom_passcode: string | null;
   booking_token: string | null;
   meeting_location_type: MeetingLocationType;
+  google_event_id: string | null;
+  google_sync_status: 'pending' | 'synced' | 'failed' | 'not_connected';
   created_at: string;
   updated_at: string;
+}
+
+export interface GoogleCalendarConnection {
+  id: string;
+  user_id: string;
+  google_email: string | null;
+  connected_at: string;
+  disconnected_at: string | null;
+  last_sync_at: string | null;
+  last_error: string | null;
 }
 
 export interface ProposalLink {

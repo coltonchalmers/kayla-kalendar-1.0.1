@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Save, Check, Mail, Settings2, RotateCcw, ChevronDown, Calendar, Video, AlertTriangle } from 'lucide-react';
+import { Save, Check, Mail, Settings2, RotateCcw, ChevronDown, Calendar, Video, AlertTriangle, Link2, Unlink, Loader2 } from 'lucide-react';
 import { useSettings } from '@/hooks/useSettings';
+import { useGoogleCalendar } from '@/hooks/useGoogleCalendar';
+import { useAuth } from '@/hooks/useAuth';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -146,6 +148,110 @@ function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+function GoogleCalendarCard({
+  autoSync,
+  onAutoSyncChange,
+}: {
+  autoSync: boolean;
+  onAutoSyncChange: (v: boolean) => void;
+}) {
+  const { connection, loading, connecting, connect, disconnect, error } = useGoogleCalendar();
+  const isConnected = !!connection && !connection.disconnected_at;
+
+  return (
+    <Card>
+      <div className="flex items-center gap-2 mb-1">
+        <Calendar className="w-5 h-5 text-gray-500" />
+        <h2 className="text-lg font-semibold text-gray-900">Google Calendar</h2>
+      </div>
+      <p className="text-sm text-gray-500 mb-5">
+        Automatically add every confirmed booking to your Google Calendar as a real event.
+        Reschedules and cancellations sync automatically. This is separate from the
+        "Include Google Calendar link in emails" toggle on the Emails tab — that link
+        is for your clients to add the meeting to their own calendar.
+      </p>
+
+      {loading ? (
+        <div className="flex items-center gap-2 text-sm text-gray-400">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          Checking connection status...
+        </div>
+      ) : isConnected ? (
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 p-3 rounded-lg bg-jungo-green-50 border border-jungo-green-200">
+            <div className="w-8 h-8 rounded-full bg-jungo-green-100 flex items-center justify-center flex-shrink-0">
+              <Check className="w-4 h-4 text-jungo-green-600" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-jungo-green-800">Connected</p>
+              <p className="text-xs text-jungo-green-600 truncate">{connection?.google_email}</p>
+            </div>
+            <button
+              onClick={disconnect}
+              className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-red-500 transition-colors flex-shrink-0"
+            >
+              <Unlink className="w-3.5 h-3.5" />
+              Disconnect
+            </button>
+          </div>
+
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={autoSync}
+              onChange={e => onAutoSyncChange(e.target.checked)}
+              className="w-4 h-4 rounded border-gray-300 text-jungo-green-500 focus:ring-jungo-green-500"
+            />
+            <span className="text-sm font-medium text-gray-700">Automatically add meetings to my Google Calendar</span>
+          </label>
+
+          {connection?.last_error && (
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200">
+              <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-xs font-medium text-amber-800">Sync issue detected</p>
+                <p className="text-xs text-amber-600 mt-0.5">{connection.last_error}</p>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 border border-gray-200">
+            <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+              <Calendar className="w-4 h-4 text-gray-400" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-gray-600">Not connected</p>
+              <p className="text-xs text-gray-400">Connect your Google account to enable auto-sync</p>
+            </div>
+          </div>
+
+          {error && (
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-red-50 border border-red-200">
+              <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-red-600">{error}</p>
+            </div>
+          )}
+
+          <button
+            onClick={connect}
+            disabled={connecting}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-jungo-green-600 rounded-lg hover:bg-jungo-green-700 transition-colors disabled:opacity-50"
+          >
+            {connecting ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Link2 className="w-4 h-4" />
+            )}
+            {connecting ? 'Connecting...' : 'Connect Google Calendar'}
+          </button>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 export default function SettingsPage() {
   const { settings, loading, updateSettings, resetSettings } = useSettings();
   const [saving, setSaving] = useState(false);
@@ -215,6 +321,7 @@ export default function SettingsPage() {
   const [zoomDefaultLink, setZoomDefaultLink] = useState('');
   const [siteUrl, setSiteUrl] = useState('');
   const [timezone, setTimezone] = useState('America/New_York');
+  const [googleAutoSync, setGoogleAutoSync] = useState(false);
 
   // Validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -287,6 +394,7 @@ setEmailInviteEnabled(settings.email_invite_enabled ?? true);
       setZoomDefaultLink(settings.zoom_default_link || '');
       setSiteUrl(settings.site_url || '');
       setTimezone(settings.timezone || 'America/New_York');
+      setGoogleAutoSync(settings.google_calendar_auto_sync ?? false);
     }
   }, [settings]);
 
@@ -356,6 +464,7 @@ setEmailInviteEnabled(settings.email_invite_enabled ?? true);
         zoom_default_link: zoomDefaultLink.trim() || null,
         site_url: siteUrl.trim() || null,
         timezone,
+        google_calendar_auto_sync: googleAutoSync,
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -815,12 +924,10 @@ setEmailInviteEnabled(settings.email_invite_enabled ?? true);
             </p>
           </Card>
 
-          <Card>
-            <h2 className="text-lg font-semibold text-gray-900 mb-1">Google Calendar</h2>
-            <p className="text-sm text-gray-500">
-              Google Calendar links are automatically included in confirmation emails when the "Include Google Calendar link" toggle is enabled on the Emails tab. No setup required — this uses Google's public event URL format.
-            </p>
-          </Card>
+          <GoogleCalendarCard
+            autoSync={googleAutoSync}
+            onAutoSyncChange={setGoogleAutoSync}
+          />
         </div>
       )}
 
